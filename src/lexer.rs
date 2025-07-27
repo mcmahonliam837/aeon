@@ -42,155 +42,128 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn lex(file_path: &str) -> Result<Vec<Token>, LexerError> {
-        let mut lexer = Lexer::new(file_path);
+        let mut lexer = Self {
+            file_path: file_path.to_string(),
+            current_string: String::new(),
+            tokens: Vec::new(),
+            state: VecDeque::new(),
+        };
         lexer.run()?;
         Ok(lexer.tokens)
     }
 
-    fn new(file_name: &str) -> Self {
-        Self {
-            file_path: String::from(file_name),
-            current_string: String::new(),
-            tokens: Vec::new(),
-            state: VecDeque::new(),
-        }
-    }
-
     fn run(&mut self) -> Result<(), LexerError> {
-        let input = std::fs::File::open(self.file_path.clone())?;
+        let input = std::fs::File::open(&self.file_path)?;
         let mut reader = BufReader::new(input);
+        let mut chars = reader.chars().peekable();
 
-        let mut position = 0;
-        let mut tmp = reader.chars().peekable();
-        while let Some(c) = tmp.next() {
-            match c {
-                Ok(c) => {
-                    let peak = tmp.peek().and_then(|r| r.as_ref().ok()).copied();
-                    let Some(command) = self.process_byte(c, peak) else {
-                        continue;
-                    };
-                    match command {
-                        PostProcessingCommand::Clear => {
-                            self.current_string.clear();
-                        }
-                        PostProcessingCommand::ClearAndSkipPeak => {
-                            self.current_string.clear();
-                            tmp.next();
-                        }
-                    }
-                }
-                Err(ref err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    break;
-                }
-                Err(err) => {
-                    return Err(LexerError::IoError(err));
-                }
+        while let Some(Ok(c)) = chars.next() {
+            let peak = chars.peek().and_then(|r| r.as_ref().ok()).copied();
+            let Some(cmd) = self.process_byte(c, peak) else {
+                continue;
+            };
+
+            self.current_string.clear();
+            if matches!(cmd, PostProcessingCommand::ClearAndSkipPeak) {
+                chars.next();
             }
-            position += 1;
         }
-
         Ok(())
     }
 
     fn process_byte(&mut self, c: char, peak: Option<char>) -> Option<PostProcessingCommand> {
         match self.state.back() {
-            None => match c {
-                '\n' => {
-                    self.tokens.push(Token::Newline);
-                    Some(PostProcessingCommand::Clear)
-                }
-                '"' => {
-                    self.state.push_back(LexerState::InString);
-                    None
-                }
-                '/' if peak == Some('/') => {
-                    self.state.push_back(LexerState::InComment);
-                    if !self.current_string.is_empty() {
-                        let token = Self::process_unknown_string(self.current_string.as_str());
-                        self.tokens.push(token);
-                    }
-                    self.current_string.clear();
-                    None
-                }
-                c if let Ok(token) = Token::try_from(c) => {
-                    Self::commit_and_push(&mut self.tokens, token, self.current_string.as_str());
-                    Some(PostProcessingCommand::Clear)
-                }
-                c if c.is_whitespace() && !self.current_string.is_empty() => {
-                    if let Ok(keyword) = Keyword::try_from(self.current_string.as_str()) {
-                        self.tokens.push(Token::Keyword(keyword));
-                    } else {
-                        self.tokens
-                            .push(Token::Identifier(self.current_string.clone()));
-                    }
-                    Some(PostProcessingCommand::Clear)
-                }
-                c if c.is_whitespace() => None,
-                c => {
-                    let mut operator_chars = vec![c];
-                    if let Some(peak) = peak {
-                        operator_chars.push(peak);
-                    };
-
-                    let op_str = String::from_iter(operator_chars);
-
-                    if let Ok(op) = Operator::try_from(op_str.as_str()) {
-                        Self::commit_and_push(
-                            &mut self.tokens,
-                            Token::Operator(op),
-                            self.current_string.as_str(),
-                        );
-                        return Some(PostProcessingCommand::ClearAndSkipPeak);
-                    }
-
-                    if let Ok(op) = Operator::try_from(c.to_string().as_str()) {
-                        Self::commit_and_push(
-                            &mut self.tokens,
-                            Token::Operator(op),
-                            self.current_string.as_str(),
-                        );
-
-                        return Some(PostProcessingCommand::ClearAndSkipPeak);
-                    }
-
-                    self.current_string.push(c);
-                    None
-                }
-            },
-            Some(LexerState::InString) => match c {
-                '"' if !self.current_string.ends_with("\\") => {
+            Some(LexerState::InString) => self.process_string(c),
+            Some(LexerState::InComment) => {
+                if c == '\n' {
                     self.state.pop_back();
-                    self.tokens
-                        .push(Token::LiteralString(self.current_string.clone()));
-                    Some(PostProcessingCommand::Clear)
                 }
-                _ => {
-                    self.current_string.push(c);
-                    None
-                }
-            },
-            Some(LexerState::InComment) => match c {
-                '\n' => {
-                    self.state.pop_back();
-                    None
-                }
-                _ => None,
-            },
+                None
+            }
+            None => self.process_normal(c, peak),
         }
     }
 
-    fn commit_and_push(tokens: &mut Vec<Token>, token: Token, str: &str) {
-        if !str.is_empty() {
-            tokens.push(Self::process_unknown_string(str));
+    fn process_string(&mut self, c: char) -> Option<PostProcessingCommand> {
+        if c == '"' && !self.current_string.ends_with('\\') {
+            self.state.pop_back();
+            self.tokens
+                .push(Token::LiteralString(self.current_string.clone()));
+            Some(PostProcessingCommand::Clear)
+        } else {
+            self.current_string.push(c);
+            None
         }
-        tokens.push(token);
     }
 
-    fn process_unknown_string(str: &str) -> Token {
-        if let Ok(keyword) = Keyword::try_from(str) {
+    fn process_normal(&mut self, c: char, peak: Option<char>) -> Option<PostProcessingCommand> {
+        match c {
+            '\n' => {
+                self.tokens.push(Token::Newline);
+                Some(PostProcessingCommand::Clear)
+            }
+            '"' => {
+                self.state.push_back(LexerState::InString);
+                None
+            }
+            '/' if peak == Some('/') => {
+                self.state.push_back(LexerState::InComment);
+                self.commit_identifier();
+                None
+            }
+            c if c.is_whitespace() => {
+                if !self.current_string.is_empty() {
+                    self.commit_identifier();
+                    Some(PostProcessingCommand::Clear)
+                } else {
+                    None
+                }
+            }
+            c => self.process_operator_or_char(c, peak),
+        }
+    }
+
+    fn process_operator_or_char(
+        &mut self,
+        c: char,
+        peak: Option<char>,
+    ) -> Option<PostProcessingCommand> {
+        if let Ok(token) = Token::try_from(c) {
+            self.commit_and_push(token);
+            return Some(PostProcessingCommand::Clear);
+        }
+
+        let two_char = format!("{}{}", c, peak.unwrap_or(' '));
+        if let Ok(op) = Operator::try_from(two_char.as_str()) {
+            self.commit_and_push(Token::Operator(op));
+            return Some(PostProcessingCommand::ClearAndSkipPeak);
+        }
+
+        if let Ok(op) = Operator::try_from(c.to_string().as_str()) {
+            self.commit_and_push(Token::Operator(op));
+            return Some(PostProcessingCommand::Clear);
+        }
+
+        self.current_string.push(c);
+        None
+    }
+
+    fn commit_and_push(&mut self, token: Token) {
+        self.commit_identifier();
+        self.tokens.push(token);
+    }
+
+    fn commit_identifier(&mut self) {
+        if self.current_string.is_empty() {
+            return;
+        }
+
+        let token = if let Ok(keyword) = Keyword::try_from(self.current_string.as_str()) {
             Token::Keyword(keyword)
         } else {
-            Token::Identifier(str.to_string())
-        }
+            Token::Identifier(self.current_string.clone())
+        };
+        self.tokens.push(token);
+        self.current_string.clear();
     }
 }
