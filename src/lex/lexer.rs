@@ -176,3 +176,53 @@ impl<R: BufRead> Lexer<R> {
         context.current_string.clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufReader;
+
+    use stringreader::StringReader;
+
+    use super::*;
+
+    const AEON_HELLO_WORLD: &str = "
+        module main {
+            fn main() {
+                println(\"Hello, world!\")
+            }
+        }
+        ";
+
+    #[test]
+    fn test_lexer() {
+        let string_reader = StringReader::new(AEON_HELLO_WORLD);
+        let mut reader = BufReader::new(string_reader);
+
+        let tokens = Lexer::lex(&mut reader).unwrap();
+
+        let expected_tokens = vec![
+            Token::Newline,
+            Token::Keyword(Keyword::Module),
+            Token::Identifier("main".to_string()),
+            Token::OpenBrace,
+            Token::Newline,
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("main".to_string()),
+            Token::OpenParenthesis,
+            Token::CloseParenthesis,
+            Token::OpenBrace,
+            Token::Newline,
+            Token::Identifier("println".to_string()),
+            Token::OpenParenthesis,
+            Token::LiteralString("Hello, world!".to_string()),
+            Token::CloseParenthesis,
+            Token::Newline,
+            Token::CloseBrace,
+            Token::Newline,
+            Token::CloseBrace,
+            Token::Newline,
+        ];
+
+        assert_eq!(tokens, expected_tokens);
+    }
+}

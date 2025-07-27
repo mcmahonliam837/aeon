@@ -6,6 +6,7 @@ version = 4
 name = "aeon-rs"
 version = "0.1.0"
 dependencies = [
+ "stringreader",
  "utf8-chars",
 ]
 
@@ -14,6 +15,12 @@ name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
+name = "stringreader"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913e7b03d63752f6cdd2df77da36749d82669904798fe8944b9ec3d23f159905"
 
 [[package]]
 name = "utf8-chars"
