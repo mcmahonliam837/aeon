@@ -5,6 +5,7 @@ Aeon is a better C. Its not aiming to add any fancy new concepts, just fix some 
 aspects of C.
 
 ```aeon
+  // Module can also be file scope
   module UserManager {
 
     // pub is used to determine what goes into the public interface of the module

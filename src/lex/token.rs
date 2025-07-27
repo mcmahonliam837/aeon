@@ -86,6 +86,7 @@ pub enum Operator {
     GreaterEqual,
     And,
     Or,
+    Pipeline,
 }
 
 impl TryFrom<&str> for Operator {
@@ -113,6 +114,7 @@ impl TryFrom<&str> for Operator {
             "==" => Ok(Operator::Equal),
             "<=" => Ok(Operator::LessEqual),
             ">=" => Ok(Operator::GreaterEqual),
+            "|>" => Ok(Operator::Pipeline),
             _ => Err(()),
         }
     }
