@@ -5,12 +5,14 @@ use utf8_chars::BufReadCharsExt;
 #[derive(Debug)]
 pub enum LexerError {
     IoError(std::io::Error),
+    UnexpectedEndOfInput,
 }
 
 impl std::fmt::Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LexerError::IoError(err) => write!(f, "IO error: {}", err),
+            LexerError::UnexpectedEndOfInput => write!(f, "Unexpected end of input"),
         }
     }
 }
@@ -68,7 +70,14 @@ impl<R: BufRead> Lexer<R> {
                 chars.next();
             }
         }
-        Ok(context.tokens)
+        // Commit any remaining content at the end of input
+        match context.state.back() {
+            Some(LexerState::InString) => Err(LexerError::UnexpectedEndOfInput),
+            _ => {
+                Self::commit_identifier(&mut context);
+                Ok(context.tokens)
+            }
+        }
     }
 
     fn process_byte(
@@ -81,8 +90,11 @@ impl<R: BufRead> Lexer<R> {
             Some(LexerState::InComment) => {
                 if c == '\n' {
                     context.state.pop_back();
+                    context.tokens.push(Token::Newline);
+                    Some(PostProcessingCommand::Clear)
+                } else {
+                    None
                 }
-                None
             }
             None => Self::process_normal(context, c, peak),
         }
@@ -108,6 +120,7 @@ impl<R: BufRead> Lexer<R> {
     ) -> Option<PostProcessingCommand> {
         match c {
             '\n' => {
+                Self::commit_identifier(context);
                 context.tokens.push(Token::Newline);
                 Some(PostProcessingCommand::Clear)
             }
@@ -185,20 +198,23 @@ mod tests {
 
     use super::*;
 
-    const AEON_HELLO_WORLD: &str = "
-        module main {
-            fn main() {
-                println(\"Hello, world!\")
-            }
-        }
-        ";
+    fn lex_string(input: &str) -> Result<Vec<Token>, LexerError> {
+        let string_reader = StringReader::new(input);
+        let reader = BufReader::new(string_reader);
+        Lexer::lex(reader)
+    }
 
     #[test]
-    fn test_lexer() {
-        let string_reader = StringReader::new(AEON_HELLO_WORLD);
-        let mut reader = BufReader::new(string_reader);
+    fn test_hello_world() {
+        let input = "
+           module main {
+               fn main() {
+                   println(\"Hello, world!\")
+               }
+           }
+           ";
 
-        let tokens = Lexer::lex(&mut reader).unwrap();
+        let tokens = lex_string(input).unwrap();
 
         let expected_tokens = vec![
             Token::Newline,
@@ -224,5 +240,693 @@ mod tests {
         ];
 
         assert_eq!(tokens, expected_tokens);
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let tokens = lex_string("").unwrap();
+        assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_whitespace_only() {
+        let tokens = lex_string("   \t  \n  \t").unwrap();
+        assert_eq!(tokens, vec![Token::Newline]);
+    }
+
+    #[test]
+    fn test_keywords() {
+        let input = "module import fn if else return";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Keyword(Keyword::Module),
+            Token::Keyword(Keyword::Import),
+            Token::Keyword(Keyword::Fn),
+            Token::Keyword(Keyword::If),
+            Token::Keyword(Keyword::Else),
+            Token::Keyword(Keyword::Return),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_identifiers() {
+        let input = "variable myFunc _private camelCase snake_case CONSTANT";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("variable".to_string()),
+            Token::Identifier("myFunc".to_string()),
+            Token::Identifier("_private".to_string()),
+            Token::Identifier("camelCase".to_string()),
+            Token::Identifier("snake_case".to_string()),
+            Token::Identifier("CONSTANT".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_single_char_operators() {
+        let input = "+ - * / % ^ & | < > =";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Operator(Operator::Plus),
+            Token::Operator(Operator::Minus),
+            Token::Operator(Operator::Star),
+            Token::Operator(Operator::Slash),
+            Token::Operator(Operator::Percent),
+            Token::Operator(Operator::Caret),
+            Token::Operator(Operator::Ampersand),
+            Token::Operator(Operator::Pipe),
+            Token::Operator(Operator::Less),
+            Token::Operator(Operator::Greater),
+            Token::Operator(Operator::Reassign),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_double_char_operators() {
+        let input = ":= == != <= >= && || |>";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Operator(Operator::Assign),
+            Token::Operator(Operator::Equal),
+            Token::Operator(Operator::NotEqual),
+            Token::Operator(Operator::LessEqual),
+            Token::Operator(Operator::GreaterEqual),
+            Token::Operator(Operator::And),
+            Token::Operator(Operator::Or),
+            Token::Operator(Operator::Pipeline),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_punctuation() {
+        let input = "(){}[],.";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::OpenParenthesis,
+            Token::CloseParenthesis,
+            Token::OpenBrace,
+            Token::CloseBrace,
+            Token::OpenBracket,
+            Token::CloseBracket,
+            Token::Comma,
+            Token::Dot,
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_string_literals() {
+        let input = r#""simple" "with spaces" "with\nnewline""#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::LiteralString("simple".to_string()),
+            Token::LiteralString("with spaces".to_string()),
+            Token::LiteralString("with\\nnewline".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_string_with_escaped_quotes() {
+        let input = r#""string with \" escaped quotes""#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::LiteralString(
+            r#"string with \" escaped quotes"#.to_string(),
+        )];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_empty_string() {
+        let input = r#""""#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::LiteralString("".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_comments() {
+        let input = "before // this is a comment\nafter";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("before".to_string()),
+            Token::Newline,
+            Token::Identifier("after".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_comment_at_end() {
+        let input = "code // comment";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::Identifier("code".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_multiple_comments() {
+        let input = "// first comment\ncode\n// second comment\nmore_code";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Newline,
+            Token::Identifier("code".to_string()),
+            Token::Newline,
+            Token::Newline,
+            Token::Identifier("more_code".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_complex_expression() {
+        let input = "x := 5 + 3 * (y - 2)";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Assign),
+            Token::Identifier("5".to_string()),
+            Token::Operator(Operator::Plus),
+            Token::Identifier("3".to_string()),
+            Token::Operator(Operator::Star),
+            Token::OpenParenthesis,
+            Token::Identifier("y".to_string()),
+            Token::Operator(Operator::Minus),
+            Token::Identifier("2".to_string()),
+            Token::CloseParenthesis,
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_if_else_statement() {
+        let input = "if x > 5 && y < 10 {\n    return true\n} else {\n    return false\n}";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Keyword(Keyword::If),
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Greater),
+            Token::Identifier("5".to_string()),
+            Token::Operator(Operator::And),
+            Token::Identifier("y".to_string()),
+            Token::Operator(Operator::Less),
+            Token::Identifier("10".to_string()),
+            Token::OpenBrace,
+            Token::Newline,
+            Token::Keyword(Keyword::Return),
+            Token::Identifier("true".to_string()),
+            Token::Newline,
+            Token::CloseBrace,
+            Token::Keyword(Keyword::Else),
+            Token::OpenBrace,
+            Token::Newline,
+            Token::Keyword(Keyword::Return),
+            Token::Identifier("false".to_string()),
+            Token::Newline,
+            Token::CloseBrace,
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_pipeline_operator() {
+        let input = "data |> transform |> filter";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("data".to_string()),
+            Token::Operator(Operator::Pipeline),
+            Token::Identifier("transform".to_string()),
+            Token::Operator(Operator::Pipeline),
+            Token::Identifier("filter".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_array_access() {
+        let input = "arr[0] = arr[i + 1]";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("arr".to_string()),
+            Token::OpenBracket,
+            Token::Identifier("0".to_string()),
+            Token::CloseBracket,
+            Token::Operator(Operator::Reassign),
+            Token::Identifier("arr".to_string()),
+            Token::OpenBracket,
+            Token::Identifier("i".to_string()),
+            Token::Operator(Operator::Plus),
+            Token::Identifier("1".to_string()),
+            Token::CloseBracket,
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_method_chaining() {
+        let input = "obj.method1().method2().property";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("obj".to_string()),
+            Token::Dot,
+            Token::Identifier("method1".to_string()),
+            Token::OpenParenthesis,
+            Token::CloseParenthesis,
+            Token::Dot,
+            Token::Identifier("method2".to_string()),
+            Token::OpenParenthesis,
+            Token::CloseParenthesis,
+            Token::Dot,
+            Token::Identifier("property".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_adjacent_operators() {
+        let input = "x=-5"; // negative number
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Reassign),
+            Token::Operator(Operator::Minus),
+            Token::Identifier("5".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_mixed_case_keywords() {
+        // Keywords should be case-insensitive according to the Keyword::try_from implementation
+        let input = "MODULE Fn RETURN";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Keyword(Keyword::Module),
+            Token::Keyword(Keyword::Fn),
+            Token::Keyword(Keyword::Return),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_consecutive_newlines() {
+        let input = "line1\n\n\nline2";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("line1".to_string()),
+            Token::Newline,
+            Token::Newline,
+            Token::Newline,
+            Token::Identifier("line2".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_string_in_comment() {
+        let input = "code // comment with \"string\"";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::Identifier("code".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_division_vs_comment() {
+        let input = "a / b // comment";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Operator(Operator::Slash),
+            Token::Identifier("b".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_unclosed_string() {
+        // Test that unclosed strings result in an error
+        let input = "before \"unclosed string";
+        let result = lex_string(input);
+
+        // When a string is not closed, the lexer should return an UnexpectedEndOfInput error
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_unclosed_string_in_middle() {
+        // Test that unclosed strings in the middle of input (with newline) also result in an error
+        let input = "before \"unclosed\nafter";
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_closed_string_at_end() {
+        // Test that properly closed strings at end of input work correctly
+        let input = r#"before "properly closed""#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("before".to_string()),
+            Token::LiteralString("properly closed".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_string_with_multiple_escapes() {
+        let input = r#""string with \\ backslash and \" quote""#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::LiteralString(
+            r#"string with \\ backslash and \" quote"#.to_string(),
+        )];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_operators_without_spaces() {
+        let input = "a+b-c*d/e%f";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Operator(Operator::Plus),
+            Token::Identifier("b".to_string()),
+            Token::Operator(Operator::Minus),
+            Token::Identifier("c".to_string()),
+            Token::Operator(Operator::Star),
+            Token::Identifier("d".to_string()),
+            Token::Operator(Operator::Slash),
+            Token::Identifier("e".to_string()),
+            Token::Operator(Operator::Percent),
+            Token::Identifier("f".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_comparison_chain() {
+        let input = "a<b<=c==d!=e>=f>g";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Operator(Operator::Less),
+            Token::Identifier("b".to_string()),
+            Token::Operator(Operator::LessEqual),
+            Token::Identifier("c".to_string()),
+            Token::Operator(Operator::Equal),
+            Token::Identifier("d".to_string()),
+            Token::Operator(Operator::NotEqual),
+            Token::Identifier("e".to_string()),
+            Token::Operator(Operator::GreaterEqual),
+            Token::Identifier("f".to_string()),
+            Token::Operator(Operator::Greater),
+            Token::Identifier("g".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_logical_operators() {
+        let input = "a && b || c";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Operator(Operator::And),
+            Token::Identifier("b".to_string()),
+            Token::Operator(Operator::Or),
+            Token::Identifier("c".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_nested_structures() {
+        let input = "{[()]}";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::OpenBrace,
+            Token::OpenBracket,
+            Token::OpenParenthesis,
+            Token::CloseParenthesis,
+            Token::CloseBracket,
+            Token::CloseBrace,
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_mixed_whitespace() {
+        let input = "a\t\tb  \t c\n\t d";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Identifier("b".to_string()),
+            Token::Identifier("c".to_string()),
+            Token::Newline,
+            Token::Identifier("d".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_assign_vs_reassign() {
+        let input = "x := 5\ny = 10";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Assign),
+            Token::Identifier("5".to_string()),
+            Token::Newline,
+            Token::Identifier("y".to_string()),
+            Token::Operator(Operator::Reassign),
+            Token::Identifier("10".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_comment_with_operators() {
+        let input = "code // comment with := != |> operators";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::Identifier("code".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_string_followed_by_comment() {
+        let input = r#""string" // comment"#;
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::LiteralString("string".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_bitwise_operators() {
+        let input = "a & b | c ^ d";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("a".to_string()),
+            Token::Operator(Operator::Ampersand),
+            Token::Identifier("b".to_string()),
+            Token::Operator(Operator::Pipe),
+            Token::Identifier("c".to_string()),
+            Token::Operator(Operator::Caret),
+            Token::Identifier("d".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_trailing_whitespace() {
+        let input = "identifier   \t  ";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::Identifier("identifier".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_leading_whitespace() {
+        let input = "   \t  identifier";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![Token::Identifier("identifier".to_string())];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_underscore_identifier() {
+        let input = "_ _test __private__";
+        let tokens = lex_string(input).unwrap();
+
+        let expected = vec![
+            Token::Identifier("_".to_string()),
+            Token::Identifier("_test".to_string()),
+            Token::Identifier("__private__".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_numeric_identifiers() {
+        let input = "123 3.14 0xFF 1e10";
+        let tokens = lex_string(input).unwrap();
+
+        // Note: The lexer currently treats all of these as identifiers
+        // In a real implementation, these would be parsed as numeric literals
+        let expected = vec![
+            Token::Identifier("123".to_string()),
+            Token::Identifier("3".to_string()),
+            Token::Dot,
+            Token::Identifier("14".to_string()),
+            Token::Identifier("0xFF".to_string()),
+            Token::Identifier("1e10".to_string()),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_multiple_unclosed_strings() {
+        // Test with properly closed first string and unclosed second string
+        let input = r#"first "closed string" second "unclosed"#;
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_string_with_only_quote() {
+        // Test input that ends with just a quote (no space before quote)
+        let input = "identifier\"";
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_empty_unclosed_string() {
+        // Test just a single quote
+        let input = r#"""#;
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_newline_in_unclosed_string() {
+        // Strings can contain newlines, but still need to be closed
+        let input = "\"multiline\nstring\nwithout\nend";
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
+    }
+
+    #[test]
+    fn test_escaped_quote_at_end() {
+        // Test string ending with escaped quote
+        let input = r#""string ending with escaped quote\""#;
+        let result = lex_string(input);
+
+        assert!(result.is_err());
+        match result {
+            Err(LexerError::UnexpectedEndOfInput) => (),
+            _ => panic!("Expected UnexpectedEndOfInput error"),
+        }
     }
 }
