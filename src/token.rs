@@ -14,6 +14,7 @@ pub enum Token {
     OpenBracket,
     Comma,
     Dot,
+    Newline,
 }
 
 impl TryFrom<char> for Token {

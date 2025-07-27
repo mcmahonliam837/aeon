@@ -5,14 +5,12 @@ use utf8_chars::BufReadCharsExt;
 #[derive(Debug)]
 pub enum LexerError {
     IoError(std::io::Error),
-    InvalidToken(String),
 }
 
 impl std::fmt::Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LexerError::IoError(err) => write!(f, "IO error: {}", err),
-            LexerError::InvalidToken(token) => write!(f, "Invalid token: {}", token),
         }
     }
 }
@@ -62,6 +60,7 @@ impl Lexer {
         let input = std::fs::File::open(self.file_path.clone())?;
         let mut reader = BufReader::new(input);
 
+        let mut position = 0;
         let mut tmp = reader.chars().peekable();
         while let Some(c) = tmp.next() {
             match c {
@@ -79,7 +78,6 @@ impl Lexer {
                             tmp.next();
                         }
                     }
-                    self.validate_after_push()?;
                 }
                 Err(ref err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
                     break;
@@ -88,6 +86,7 @@ impl Lexer {
                     return Err(LexerError::IoError(err));
                 }
             }
+            position += 1;
         }
 
         Ok(())
@@ -96,6 +95,10 @@ impl Lexer {
     fn process_byte(&mut self, c: char, peak: Option<char>) -> Option<PostProcessingCommand> {
         match self.state.back() {
             None => match c {
+                '\n' => {
+                    self.tokens.push(Token::Newline);
+                    Some(PostProcessingCommand::Clear)
+                }
                 '"' => {
                     self.state.push_back(LexerState::InString);
                     None
@@ -189,9 +192,5 @@ impl Lexer {
         } else {
             Token::Identifier(str.to_string())
         }
-    }
-
-    fn validate_after_push(&self) -> Result<(), LexerError> {
-        Ok(())
     }
 }

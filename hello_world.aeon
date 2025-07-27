@@ -1,6 +1,6 @@
 module hello_world
 
-import "std/io"
+import "std/io" import "std/math"
 
 // This is a comment
 fn main() {
