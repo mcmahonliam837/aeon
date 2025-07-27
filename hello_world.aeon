@@ -1,0 +1,12 @@
+module hello_world
+
+import "std/io"
+
+// This is a comment
+fn main() {
+    str := "Hello, World!"
+    i := 0
+    i = i + 1
+    io.printf("%s\n", str) // This is a comment after some tokens
+    io.printf("%d\n", i)
+}
