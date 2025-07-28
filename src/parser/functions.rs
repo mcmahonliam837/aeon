@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Keyword, Token},
-    parser::{ParserContext, ParserError, StatementParser, ast::Statement},
+    parser::{ParserContext, ParserError, ast::Statement, statement::StatementParser},
 };
 
 #[derive(Debug, Clone, PartialEq)]
