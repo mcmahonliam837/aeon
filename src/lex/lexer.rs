@@ -199,7 +199,7 @@ impl<R: BufRead> Lexer<R> {
         tokens.last().map_or(false, |last_token| match last_token {
             Token::CloseBrace => true,
             Token::CloseBracket => true,
-            Token::CloseParenthesis => true,
+            Token::CloseParen => true,
             Token::Identifier(_) => true,
             Token::Literal(_) => true,
             _ => false,
@@ -239,13 +239,13 @@ mod tests {
             Token::OpenBrace,
             Token::Keyword(Keyword::Fn),
             Token::Identifier("main".to_string()),
-            Token::OpenParenthesis,
-            Token::CloseParenthesis,
+            Token::OpenParen,
+            Token::CloseParen,
             Token::OpenBrace,
             Token::Identifier("println".to_string()),
-            Token::OpenParenthesis,
+            Token::OpenParen,
             Token::Literal(Literal::String("Hello, world!".to_string())),
-            Token::CloseParenthesis,
+            Token::CloseParen,
             Token::Newline,
             Token::CloseBrace,
             Token::Newline,
@@ -349,8 +349,8 @@ mod tests {
         let tokens = lex_string(input).unwrap();
 
         let expected = vec![
-            Token::OpenParenthesis,
-            Token::CloseParenthesis,
+            Token::OpenParen,
+            Token::CloseParen,
             Token::OpenBrace,
             Token::CloseBrace,
             Token::OpenBracket,
@@ -448,11 +448,11 @@ mod tests {
             Token::Operator(Operator::Plus),
             Token::Literal(Literal::Number("3".to_string())),
             Token::Operator(Operator::Star),
-            Token::OpenParenthesis,
+            Token::OpenParen,
             Token::Identifier("y".to_string()),
             Token::Operator(Operator::Minus),
             Token::Literal(Literal::Number("2".to_string())),
-            Token::CloseParenthesis,
+            Token::CloseParen,
         ];
 
         assert_eq!(tokens, expected);
@@ -535,12 +535,12 @@ mod tests {
             Token::Identifier("obj".to_string()),
             Token::Dot,
             Token::Identifier("method1".to_string()),
-            Token::OpenParenthesis,
-            Token::CloseParenthesis,
+            Token::OpenParen,
+            Token::CloseParen,
             Token::Dot,
             Token::Identifier("method2".to_string()),
-            Token::OpenParenthesis,
-            Token::CloseParenthesis,
+            Token::OpenParen,
+            Token::CloseParen,
             Token::Dot,
             Token::Identifier("property".to_string()),
         ];
@@ -739,8 +739,8 @@ mod tests {
         let expected = vec![
             Token::OpenBrace,
             Token::OpenBracket,
-            Token::OpenParenthesis,
-            Token::CloseParenthesis,
+            Token::OpenParen,
+            Token::CloseParen,
             Token::CloseBracket,
             Token::CloseBrace,
         ];

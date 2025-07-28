@@ -5,11 +5,12 @@ pub mod parser_error;
 pub mod variables;
 
 use crate::{
-    lex::token::Token,
+    lex::token::{Operator, Token},
     parser::{
-        ast::{Ast, Expression},
+        ast::{Ast, Expression, Statement},
         modules::parse_module,
         parser_error::ParserError,
+        variables::parse_variable,
     },
 };
 
@@ -22,13 +23,30 @@ impl Parser {
     }
 }
 
-pub fn parse_expression(tokens: &[Token]) -> Result<Expression, ParserError> {
+pub fn parse_expression(tokens: &[Token]) -> Result<(Expression, usize), ParserError> {
     println!("Parsing expression: {:?}", tokens);
     match tokens {
-        [Token::Literal(literal), Token::Newline, ..] => Ok(Expression::Literal(literal.clone())),
-        [Token::Literal(literal)] => Ok(Expression::Literal(literal.clone())),
+        [Token::Literal(literal), Token::Newline, ..] => {
+            Ok((Expression::Literal(literal.clone()), 2))
+        }
+        [Token::Literal(literal)] => Ok((Expression::Literal(literal.clone()), 1)),
         [] => Err(ParserError::UnexpectedEndOfInput),
         _ => Err(ParserError::UnexpectedToken(tokens[0].clone())),
+    }
+}
+
+pub fn parse_statement(tokens: &[Token]) -> Result<(Statement, usize), ParserError> {
+    println!("Parsing statement: {:?}", tokens);
+    match tokens {
+        [Token::Literal(_), Token::Operator(Operator::Assign), ..] => {
+            let (variable, token_length) = parse_variable(tokens)?;
+            Ok((Statement::Variable(variable), token_length))
+        }
+        tokens if !tokens.is_empty() => {
+            let (expression, token_length) = parse_expression(tokens)?;
+            Ok((Statement::Expression(expression), token_length))
+        }
+        _ => Err(ParserError::UnexpectedEndOfInput),
     }
 }
 

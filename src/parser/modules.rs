@@ -1,9 +1,9 @@
 use crate::{
     lex::token::{Keyword, Token},
     parser::{
-        functions::Function,
+        functions::{Function, parse_function},
         parser_error::ParserError,
-        variables::{Variable, parse_variables},
+        variables::{Variable, parse_variable},
     },
 };
 
@@ -120,14 +120,20 @@ fn parse_module_body(
             Token::Identifier(_) => {
                 let tokens = &tokens[index..];
 
-                let (variable, token_length) = parse_variables(tokens)?;
+                let (variable, token_length) = parse_variable(tokens)?;
 
                 variables.push(variable);
 
                 index += token_length + 1;
             }
             Token::Keyword(Keyword::Fn) => {
-                todo!("Implement function declaration parsing")
+                let tokens = &tokens[index..];
+
+                let (function, token_length) = parse_function(tokens)?;
+
+                functions.push(function);
+
+                index += token_length + 1;
             }
             Token::Newline => {}
             _ => return Err(ParserError::UnexpectedToken(token.clone())),

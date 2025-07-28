@@ -4,8 +4,8 @@ pub enum Token {
     Keyword(Keyword),
     Operator(Operator),
     Literal(Literal),
-    OpenParenthesis,
-    CloseParenthesis,
+    OpenParen,
+    CloseParen,
     CloseBrace,
     OpenBrace,
     CloseBracket,
@@ -19,8 +19,8 @@ impl TryFrom<char> for Token {
     type Error = ();
     fn try_from(c: char) -> Result<Self, ()> {
         match c {
-            '(' => Ok(Token::OpenParenthesis),
-            ')' => Ok(Token::CloseParenthesis),
+            '(' => Ok(Token::OpenParen),
+            ')' => Ok(Token::CloseParen),
             '{' => Ok(Token::OpenBrace),
             '}' => Ok(Token::CloseBrace),
             '[' => Ok(Token::OpenBracket),

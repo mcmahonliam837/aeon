@@ -9,7 +9,7 @@ pub struct Variable {
     pub expression: Expression,
 }
 
-pub fn parse_variables(tokens: &[Token]) -> Result<(Variable, usize), ParserError> {
+pub fn parse_variable(tokens: &[Token]) -> Result<(Variable, usize), ParserError> {
     println!("Parsing variable from: {:?}", tokens);
     if tokens.len() < 3 {
         return Err(ParserError::UnexpectedEndOfInput);
@@ -21,18 +21,7 @@ pub fn parse_variables(tokens: &[Token]) -> Result<(Variable, usize), ParserErro
 
     let name = tokens[0].clone();
 
-    let end = tokens.iter().position(|t| t == &Token::Newline);
-    let tokens = if let Some(newline_index) = end {
-        &tokens[2..newline_index]
-    } else {
-        &tokens[2..]
-    };
+    let (expression, token_length) = parse_expression(&tokens[2..])?;
 
-    Ok((
-        Variable {
-            name,
-            expression: parse_expression(tokens)?,
-        },
-        tokens.len(),
-    ))
+    Ok((Variable { name, expression }, token_length))
 }
