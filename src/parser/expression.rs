@@ -10,7 +10,6 @@ impl ExpressionParser {
         _ctx: &mut ParserContext,
         tokens: &[Token],
     ) -> Result<(Expression, usize), ParserError> {
-        println!("Parsing expression: {:?}", tokens);
         match tokens {
             [Token::Literal(literal), Token::Newline, ..] => {
                 Ok((Expression::Literal(literal.clone()), 2))

@@ -173,7 +173,7 @@ impl PrettyPrinter {
         let indent = self.indent(level);
         match statement {
             Statement::Variable(var) => {
-                format!("{}{} = {}\n", indent, var.name, var.expression)
+                format!("{}{} := {}\n", indent, var.name, var.expression)
             }
             Statement::Expression(expr) => {
                 format!("{}{}\n", indent, expr)

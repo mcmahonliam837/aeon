@@ -4,6 +4,7 @@ use std::io::BufReader;
 
 use crate::lex::lexer::Lexer;
 use crate::parser::Parser;
+use crate::parser::ast::PrettyPrinter;
 
 pub mod lex;
 pub mod parser;
@@ -14,11 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tokens = Lexer::lex(&mut reader)?;
 
-    let _ast = Parser::parse(&tokens)?;
+    let ast = Parser::parse(&tokens)?;
 
-    // ast.iter().for_each(|node| {
-    //     println!("{:?}", node);
-    // });
+    let printer = PrettyPrinter::new();
+    println!("{}", printer.print(&ast));
 
     Ok(())
 }

@@ -1,12 +1,11 @@
-module hello_world
+module main
 
-import "std/io" import "std/math"
+// import "std/io"
 
 // This is a comment
-fn main() {
+fn main() void {
     str := "Hello, World!"
     i := 0
-    i = i + 1
-    io.printf("%s\n", str) // This is a comment after some tokens
-    io.printf("%d\n", i)
+    // io.printf("%s\n", str)
+    // io.printf("%d\n", i)
 }
