@@ -169,7 +169,9 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        ctx.enter_module("test_module".to_string());
+        let result = parse_function(&mut ctx, &tokens);
         if let Err(err) = result {
             panic!("Unexpected error: {}", err);
         }
@@ -197,7 +199,9 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        ctx.enter_module("test_module".to_string());
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (function, token_count) = result.unwrap();
@@ -232,7 +236,9 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        ctx.enter_module("test_module".to_string());
+        let result = parse_function(&mut ctx, &tokens);
         if let Err(err) = result {
             panic!("Unexpected error: {}", err);
         }
@@ -277,7 +283,9 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        ctx.enter_module("test_module".to_string());
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (function, token_count) = result.unwrap();
@@ -312,7 +320,8 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -331,7 +340,8 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -342,7 +352,8 @@ mod tests {
     #[test]
     fn test_parse_function_empty_input() {
         let tokens = vec![];
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -362,7 +373,8 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -381,7 +393,9 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_function(&tokens);
+        let mut ctx = ParserContext::new();
+        ctx.enter_module("test_module".to_string());
+        let result = parse_function(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -450,7 +464,8 @@ mod tests {
     fn test_parse_block_empty() {
         let tokens = vec![Token::OpenBrace, Token::CloseBrace];
 
-        let result = parse_block(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_block(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (statements, token_count) = result.unwrap();
@@ -473,7 +488,8 @@ mod tests {
             Token::CloseBrace,
         ];
 
-        let result = parse_block(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_block(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (statements, token_count) = result.unwrap();
@@ -485,7 +501,8 @@ mod tests {
     fn test_parse_block_missing_open_brace() {
         let tokens = vec![Token::Identifier("x".to_string()), Token::CloseBrace];
 
-        let result = parse_block(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_block(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -496,7 +513,8 @@ mod tests {
     #[test]
     fn test_parse_block_empty_input() {
         let tokens = vec![];
-        let result = parse_block(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_block(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),

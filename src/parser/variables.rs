@@ -43,7 +43,8 @@ mod tests {
             Token::Literal(Literal::Number("42".to_string())),
         ];
 
-        let result = parse_variable(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_variable(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (variable, token_count) = result.unwrap();
@@ -67,7 +68,8 @@ mod tests {
             Token::Keyword(Keyword::Module),
         ];
 
-        let result = parse_variable(&tokens);
+        let mut ctx = ParserContext::new();
+        let result = parse_variable(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (variable, token_count) = result.unwrap();
