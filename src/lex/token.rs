@@ -3,9 +3,7 @@ pub enum Token {
     Identifier(String),
     Keyword(Keyword),
     Operator(Operator),
-    LiteralString(String),
-    LiteralInteger(usize),
-    LiteralFloat(f64),
+    Literal(Literal),
     OpenParenthesis,
     CloseParenthesis,
     CloseBrace,
@@ -62,8 +60,43 @@ impl TryFrom<&str> for Keyword {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     String(String),
-    Integer(usize),
-    Float(f64),
+    Number(String),
+    Boolean(bool),
+}
+
+impl TryFrom<&str> for Literal {
+    type Error = ();
+    fn try_from(s: &str) -> Result<Self, ()> {
+        match s {
+            "true" => Ok(Literal::Boolean(true)),
+            "false" => Ok(Literal::Boolean(false)),
+            s if s.starts_with("0x") => {
+                if let Ok(_) = u64::from_str_radix(&s[2..], 16) {
+                    Ok(Literal::Number(s.to_string()))
+                } else {
+                    Err(())
+                }
+            }
+            s if s.starts_with("0b") => {
+                if let Ok(_) = u64::from_str_radix(&s[2..], 2) {
+                    Ok(Literal::Number(s.to_string()))
+                } else {
+                    Err(())
+                }
+            }
+            s if s.starts_with("0o") => {
+                if let Ok(_) = u64::from_str_radix(&s[2..], 8) {
+                    Ok(Literal::Number(s.to_string()))
+                } else {
+                    Err(())
+                }
+            }
+            s if s.parse::<f64>().is_ok() || s.parse::<u64>().is_ok() => {
+                Ok(Literal::Number(s.to_string()))
+            }
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

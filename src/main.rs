@@ -3,8 +3,10 @@
 use std::io::BufReader;
 
 use crate::lex::lexer::Lexer;
+use crate::parser::Parser;
 
 pub mod lex;
+pub mod parser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = std::fs::File::open("hello_world.aeon")?;
@@ -12,9 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tokens = Lexer::lex(&mut reader)?;
 
-    tokens.iter().for_each(|token| {
-        println!("{:?}", token);
-    });
+    let _ast = Parser::parse(&tokens)?;
+
+    // ast.iter().for_each(|node| {
+    //     println!("{:?}", node);
+    // });
 
     Ok(())
 }

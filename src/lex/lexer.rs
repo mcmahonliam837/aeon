@@ -1,4 +1,4 @@
-use crate::lex::token::{Keyword, Operator, Token};
+use crate::lex::token::{Keyword, Literal, Operator, Token};
 use std::{collections::VecDeque, error::Error, io::BufRead};
 use utf8_chars::BufReadCharsExt;
 
@@ -40,7 +40,7 @@ pub struct Lexer<R: BufRead> {
 }
 
 struct LexerContext {
-    current_string: String,
+    current_word: String,
     tokens: Vec<Token>,
     state: VecDeque<LexerState>,
 }
@@ -48,7 +48,7 @@ struct LexerContext {
 impl<R: BufRead> Lexer<R> {
     pub fn lex(reader: R) -> Result<Vec<Token>, LexerError> {
         let context = LexerContext {
-            current_string: String::new(),
+            current_word: String::new(),
             tokens: Vec::new(),
             state: VecDeque::new(),
         };
@@ -65,7 +65,7 @@ impl<R: BufRead> Lexer<R> {
                 continue;
             };
 
-            context.current_string.clear();
+            context.current_word.clear();
             if matches!(cmd, PostProcessingCommand::ClearAndSkipPeak) {
                 chars.next();
             }
@@ -74,7 +74,7 @@ impl<R: BufRead> Lexer<R> {
         match context.state.back() {
             Some(LexerState::InString) => Err(LexerError::UnexpectedEndOfInput),
             _ => {
-                Self::commit_identifier(&mut context);
+                Self::commit_word(&mut context);
                 Ok(context.tokens)
             }
         }
@@ -90,7 +90,9 @@ impl<R: BufRead> Lexer<R> {
             Some(LexerState::InComment) => {
                 if c == '\n' {
                     context.state.pop_back();
-                    context.tokens.push(Token::Newline);
+                    if Self::should_insert_newline(&context.tokens) {
+                        context.tokens.push(Token::Newline);
+                    }
                     Some(PostProcessingCommand::Clear)
                 } else {
                     None
@@ -101,14 +103,14 @@ impl<R: BufRead> Lexer<R> {
     }
 
     fn process_string(context: &mut LexerContext, c: char) -> Option<PostProcessingCommand> {
-        if c == '"' && !context.current_string.ends_with('\\') {
+        if c == '"' && !context.current_word.ends_with('\\') {
             context.state.pop_back();
-            context
-                .tokens
-                .push(Token::LiteralString(context.current_string.clone()));
+            context.tokens.push(Token::Literal(Literal::String(
+                context.current_word.clone(),
+            )));
             Some(PostProcessingCommand::Clear)
         } else {
-            context.current_string.push(c);
+            context.current_word.push(c);
             None
         }
     }
@@ -120,8 +122,10 @@ impl<R: BufRead> Lexer<R> {
     ) -> Option<PostProcessingCommand> {
         match c {
             '\n' => {
-                Self::commit_identifier(context);
-                context.tokens.push(Token::Newline);
+                Self::commit_word(context);
+                if Self::should_insert_newline(&context.tokens) {
+                    context.tokens.push(Token::Newline);
+                }
                 Some(PostProcessingCommand::Clear)
             }
             '"' => {
@@ -130,12 +134,12 @@ impl<R: BufRead> Lexer<R> {
             }
             '/' if peak == Some('/') => {
                 context.state.push_back(LexerState::InComment);
-                Self::commit_identifier(context);
+                Self::commit_word(context);
                 None
             }
             c if c.is_whitespace() => {
-                if !context.current_string.is_empty() {
-                    Self::commit_identifier(context);
+                if !context.current_word.is_empty() {
+                    Self::commit_word(context);
                     Some(PostProcessingCommand::Clear)
                 } else {
                     None
@@ -166,27 +170,40 @@ impl<R: BufRead> Lexer<R> {
             return Some(PostProcessingCommand::Clear);
         }
 
-        context.current_string.push(c);
+        context.current_word.push(c);
         None
     }
 
     fn commit_and_push(context: &mut LexerContext, token: Token) {
-        Self::commit_identifier(context);
+        Self::commit_word(context);
         context.tokens.push(token);
     }
 
-    fn commit_identifier(context: &mut LexerContext) {
-        if context.current_string.is_empty() {
+    fn commit_word(context: &mut LexerContext) {
+        if context.current_word.is_empty() {
             return;
         }
 
-        let token = if let Ok(keyword) = Keyword::try_from(context.current_string.as_str()) {
+        let token = if let Ok(keyword) = Keyword::try_from(context.current_word.as_str()) {
             Token::Keyword(keyword)
+        } else if let Ok(literal) = Literal::try_from(context.current_word.as_str()) {
+            Token::Literal(literal)
         } else {
-            Token::Identifier(context.current_string.clone())
+            Token::Identifier(context.current_word.clone())
         };
         context.tokens.push(token);
-        context.current_string.clear();
+        context.current_word.clear();
+    }
+
+    fn should_insert_newline(tokens: &[Token]) -> bool {
+        tokens.last().map_or(false, |last_token| match last_token {
+            Token::CloseBrace => true,
+            Token::CloseBracket => true,
+            Token::CloseParenthesis => true,
+            Token::Identifier(_) => true,
+            Token::Literal(_) => true,
+            _ => false,
+        })
     }
 }
 
@@ -217,20 +234,17 @@ mod tests {
         let tokens = lex_string(input).unwrap();
 
         let expected_tokens = vec![
-            Token::Newline,
             Token::Keyword(Keyword::Module),
             Token::Identifier("main".to_string()),
             Token::OpenBrace,
-            Token::Newline,
             Token::Keyword(Keyword::Fn),
             Token::Identifier("main".to_string()),
             Token::OpenParenthesis,
             Token::CloseParenthesis,
             Token::OpenBrace,
-            Token::Newline,
             Token::Identifier("println".to_string()),
             Token::OpenParenthesis,
-            Token::LiteralString("Hello, world!".to_string()),
+            Token::Literal(Literal::String("Hello, world!".to_string())),
             Token::CloseParenthesis,
             Token::Newline,
             Token::CloseBrace,
@@ -251,7 +265,7 @@ mod tests {
     #[test]
     fn test_whitespace_only() {
         let tokens = lex_string("   \t  \n  \t").unwrap();
-        assert_eq!(tokens, vec![Token::Newline]);
+        assert_eq!(tokens, vec![]);
     }
 
     #[test]
@@ -354,9 +368,9 @@ mod tests {
         let tokens = lex_string(input).unwrap();
 
         let expected = vec![
-            Token::LiteralString("simple".to_string()),
-            Token::LiteralString("with spaces".to_string()),
-            Token::LiteralString("with\\nnewline".to_string()),
+            Token::Literal(Literal::String("simple".to_string())),
+            Token::Literal(Literal::String("with spaces".to_string())),
+            Token::Literal(Literal::String("with\\nnewline".to_string())),
         ];
 
         assert_eq!(tokens, expected);
@@ -367,9 +381,9 @@ mod tests {
         let input = r#""string with \" escaped quotes""#;
         let tokens = lex_string(input).unwrap();
 
-        let expected = vec![Token::LiteralString(
+        let expected = vec![Token::Literal(Literal::String(
             r#"string with \" escaped quotes"#.to_string(),
-        )];
+        ))];
 
         assert_eq!(tokens, expected);
     }
@@ -379,7 +393,7 @@ mod tests {
         let input = r#""""#;
         let tokens = lex_string(input).unwrap();
 
-        let expected = vec![Token::LiteralString("".to_string())];
+        let expected = vec![Token::Literal(Literal::String("".to_string()))];
 
         assert_eq!(tokens, expected);
     }
@@ -414,9 +428,7 @@ mod tests {
         let tokens = lex_string(input).unwrap();
 
         let expected = vec![
-            Token::Newline,
             Token::Identifier("code".to_string()),
-            Token::Newline,
             Token::Newline,
             Token::Identifier("more_code".to_string()),
         ];
@@ -432,14 +444,14 @@ mod tests {
         let expected = vec![
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Assign),
-            Token::Identifier("5".to_string()),
+            Token::Literal(Literal::Number("5".to_string())),
             Token::Operator(Operator::Plus),
-            Token::Identifier("3".to_string()),
+            Token::Literal(Literal::Number("3".to_string())),
             Token::Operator(Operator::Star),
             Token::OpenParenthesis,
             Token::Identifier("y".to_string()),
             Token::Operator(Operator::Minus),
-            Token::Identifier("2".to_string()),
+            Token::Literal(Literal::Number("2".to_string())),
             Token::CloseParenthesis,
         ];
 
@@ -455,22 +467,20 @@ mod tests {
             Token::Keyword(Keyword::If),
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Greater),
-            Token::Identifier("5".to_string()),
+            Token::Literal(Literal::Number("5".to_string())),
             Token::Operator(Operator::And),
             Token::Identifier("y".to_string()),
             Token::Operator(Operator::Less),
-            Token::Identifier("10".to_string()),
+            Token::Literal(Literal::Number("10".to_string())),
             Token::OpenBrace,
-            Token::Newline,
             Token::Keyword(Keyword::Return),
-            Token::Identifier("true".to_string()),
+            Token::Literal(Literal::Boolean(true)),
             Token::Newline,
             Token::CloseBrace,
             Token::Keyword(Keyword::Else),
             Token::OpenBrace,
-            Token::Newline,
             Token::Keyword(Keyword::Return),
-            Token::Identifier("false".to_string()),
+            Token::Literal(Literal::Boolean(false)),
             Token::Newline,
             Token::CloseBrace,
         ];
@@ -502,14 +512,14 @@ mod tests {
         let expected = vec![
             Token::Identifier("arr".to_string()),
             Token::OpenBracket,
-            Token::Identifier("0".to_string()),
+            Token::Literal(Literal::Number("0".to_string())),
             Token::CloseBracket,
             Token::Operator(Operator::Reassign),
             Token::Identifier("arr".to_string()),
             Token::OpenBracket,
             Token::Identifier("i".to_string()),
             Token::Operator(Operator::Plus),
-            Token::Identifier("1".to_string()),
+            Token::Literal(Literal::Number("1".to_string())),
             Token::CloseBracket,
         ];
 
@@ -547,7 +557,7 @@ mod tests {
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Reassign),
             Token::Operator(Operator::Minus),
-            Token::Identifier("5".to_string()),
+            Token::Literal(Literal::Number("5".to_string())),
         ];
 
         assert_eq!(tokens, expected);
@@ -575,8 +585,6 @@ mod tests {
 
         let expected = vec![
             Token::Identifier("line1".to_string()),
-            Token::Newline,
-            Token::Newline,
             Token::Newline,
             Token::Identifier("line2".to_string()),
         ];
@@ -643,7 +651,7 @@ mod tests {
 
         let expected = vec![
             Token::Identifier("before".to_string()),
-            Token::LiteralString("properly closed".to_string()),
+            Token::Literal(Literal::String("properly closed".to_string())),
         ];
 
         assert_eq!(tokens, expected);
@@ -654,9 +662,9 @@ mod tests {
         let input = r#""string with \\ backslash and \" quote""#;
         let tokens = lex_string(input).unwrap();
 
-        let expected = vec![Token::LiteralString(
+        let expected = vec![Token::Literal(Literal::String(
             r#"string with \\ backslash and \" quote"#.to_string(),
-        )];
+        ))];
 
         assert_eq!(tokens, expected);
     }
@@ -764,11 +772,11 @@ mod tests {
         let expected = vec![
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Assign),
-            Token::Identifier("5".to_string()),
+            Token::Literal(Literal::Number("5".to_string())),
             Token::Newline,
             Token::Identifier("y".to_string()),
             Token::Operator(Operator::Reassign),
-            Token::Identifier("10".to_string()),
+            Token::Literal(Literal::Number("10".to_string())),
         ];
 
         assert_eq!(tokens, expected);
@@ -789,7 +797,7 @@ mod tests {
         let input = r#""string" // comment"#;
         let tokens = lex_string(input).unwrap();
 
-        let expected = vec![Token::LiteralString("string".to_string())];
+        let expected = vec![Token::Literal(Literal::String("string".to_string()))];
 
         assert_eq!(tokens, expected);
     }
@@ -847,19 +855,19 @@ mod tests {
     }
 
     #[test]
-    fn test_numeric_identifiers() {
+    fn test_numeric_literals() {
         let input = "123 3.14 0xFF 1e10";
         let tokens = lex_string(input).unwrap();
 
         // Note: The lexer currently treats all of these as identifiers
         // In a real implementation, these would be parsed as numeric literals
         let expected = vec![
-            Token::Identifier("123".to_string()),
-            Token::Identifier("3".to_string()),
+            Token::Literal(Literal::Number("123".to_string())),
+            Token::Literal(Literal::Number("3".to_string())),
             Token::Dot,
-            Token::Identifier("14".to_string()),
-            Token::Identifier("0xFF".to_string()),
-            Token::Identifier("1e10".to_string()),
+            Token::Literal(Literal::Number("14".to_string())),
+            Token::Literal(Literal::Number("0xFF".to_string())),
+            Token::Literal(Literal::Number("1e10".to_string())),
         ];
 
         assert_eq!(tokens, expected);
