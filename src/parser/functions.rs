@@ -14,6 +14,7 @@ pub struct Function {
     pub decl: Token,
     pub name: Token,
     pub parameters: Vec<Arg>,
+    pub return_type: Token,
     pub statements: Vec<Statement>,
 }
 
@@ -47,11 +48,29 @@ pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError
         let (arg, token_length) = parse_arg(&tokens[index..])?;
         parameters.push(arg);
         index += token_length;
+
+        // Consume comma if present
+        if matches!(tokens[index], Token::Comma) {
+            index += 1;
+        }
     }
 
     if tokens[index] == Token::CloseParen {
         index += 1;
     }
+
+    // Parse the return type
+    if tokens.len() <= index {
+        return Err(ParserError::UnexpectedEndOfInput);
+    }
+
+    if !matches!(tokens[index], Token::Identifier(_)) {
+        return Err(ParserError::UnexpectedToken(tokens[index].clone()));
+    }
+
+    let return_type = tokens[index].clone();
+    index += 1;
+
     let (statements, block_length) = parse_block(&tokens[index..])?;
 
     Ok((
@@ -59,6 +78,7 @@ pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError
             decl,
             name,
             parameters,
+            return_type,
             statements,
         },
         index + block_length,
@@ -91,7 +111,7 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
     }
 
     // Don't consume the delimiter - let the caller handle it
-    Ok((Arg { name, type_ }, index + 1))
+    Ok((Arg { name, type_ }, index))
 }
 
 fn parse_block(tokens: &[Token]) -> Result<(Vec<Statement>, usize), ParserError> {
@@ -129,6 +149,7 @@ mod tests {
             Token::Identifier("test".to_string()),
             Token::OpenParen,
             Token::CloseParen,
+            Token::Identifier("void".to_string()),
             Token::OpenBrace,
             Token::CloseBrace,
         ];
@@ -143,7 +164,8 @@ mod tests {
         assert_eq!(function.name, Token::Identifier("test".to_string()));
         assert_eq!(function.parameters.len(), 0);
         assert_eq!(function.statements.len(), 0);
-        assert_eq!(token_count, 6);
+        assert_eq!(function.return_type, Token::Identifier("void".to_string()));
+        assert_eq!(token_count, 7);
     }
 
     #[test]
@@ -155,6 +177,7 @@ mod tests {
             Token::Identifier("name".to_string()),
             Token::Identifier("string".to_string()),
             Token::CloseParen,
+            Token::Identifier("void".to_string()),
             Token::OpenBrace,
             Token::CloseBrace,
         ];
@@ -173,7 +196,8 @@ mod tests {
             function.parameters[0].type_,
             Token::Identifier("string".to_string())
         );
-        assert_eq!(token_count, 8);
+        assert_eq!(function.return_type, Token::Identifier("void".to_string()));
+        assert_eq!(token_count, 9);
     }
 
     #[test]
@@ -188,6 +212,7 @@ mod tests {
             Token::Identifier("b".to_string()),
             Token::Identifier("int".to_string()),
             Token::CloseParen,
+            Token::Identifier("int".to_string()),
             Token::OpenBrace,
             Token::CloseBrace,
         ];
@@ -217,7 +242,8 @@ mod tests {
             function.parameters[1].type_,
             Token::Identifier("int".to_string())
         );
-        assert_eq!(token_count, 11);
+        assert_eq!(function.return_type, Token::Identifier("int".to_string()));
+        assert_eq!(token_count, 12);
     }
 
     #[test]
@@ -227,6 +253,7 @@ mod tests {
             Token::Identifier("main".to_string()),
             Token::OpenParen,
             Token::CloseParen,
+            Token::Identifier("void".to_string()),
             Token::OpenBrace,
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Assign),
@@ -256,7 +283,8 @@ mod tests {
             _ => panic!("Expected variable statement"),
         }
 
-        assert_eq!(token_count, 10);
+        assert_eq!(function.return_type, Token::Identifier("void".to_string()));
+        assert_eq!(token_count, 11);
     }
 
     #[test]
@@ -283,6 +311,7 @@ mod tests {
             Token::Keyword(Keyword::Fn),
             Token::Identifier("test".to_string()),
             Token::CloseParen,
+            Token::Identifier("void".to_string()),
             Token::OpenBrace,
             Token::CloseBrace,
         ];
@@ -313,6 +342,26 @@ mod tests {
             Token::Identifier("test".to_string()),
             Token::OpenParen,
             Token::CloseParen,
+            Token::Identifier("void".to_string()),
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_function_missing_return_type() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("test".to_string()),
+            Token::OpenParen,
+            Token::CloseParen,
             Token::OpenBrace,
             Token::CloseBrace,
         ];
@@ -339,7 +388,7 @@ mod tests {
         let (arg, token_count) = result.unwrap();
         assert_eq!(arg.name, Token::Identifier("param".to_string()));
         assert_eq!(arg.type_, Token::Identifier("string".to_string()));
-        assert_eq!(token_count, 3);
+        assert_eq!(token_count, 2);
     }
 
     #[test]
@@ -356,7 +405,7 @@ mod tests {
         let (arg, token_count) = result.unwrap();
         assert_eq!(arg.name, Token::Identifier("param".to_string()));
         assert_eq!(arg.type_, Token::Identifier("int".to_string()));
-        assert_eq!(token_count, 3);
+        assert_eq!(token_count, 2);
     }
 
     #[test]
