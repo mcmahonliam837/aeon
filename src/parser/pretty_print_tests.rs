@@ -95,7 +95,7 @@ mod tests {
         let printer = PrettyPrinter::new();
         let output = printer.print(&ast);
 
-        let expected = "module main {\n  x = 42\n}\n";
+        let expected = "module main {\n  x := 42\n}\n";
         assert_eq!(output, expected);
     }
 
@@ -138,7 +138,7 @@ mod tests {
         let output = printer.print(&ast);
 
         let expected =
-            "module math {\n  fn add(a int, b int) int {\n    result = 10 + 20\n  }\n}\n";
+            "module math {\n  fn add(a int, b int) int {\n    result := 10 + 20\n  }\n}\n";
         assert_eq!(output, expected);
     }
 
@@ -171,7 +171,8 @@ mod tests {
         let printer = PrettyPrinter::new();
         let output = printer.print(&ast);
 
-        let expected = "module outer {\n  x = 1\n\n  module inner {\n    y = \"nested\"\n  }\n}\n";
+        let expected =
+            "module outer {\n  x := 1\n\n  module inner {\n    y := \"nested\"\n  }\n}\n";
         assert_eq!(output, expected);
     }
 
@@ -216,7 +217,7 @@ mod tests {
         let printer = PrettyPrinter::new();
         let output = printer.print(&ast);
 
-        let expected = "module test {\n  result = (3 + 5) * -2\n}\n";
+        let expected = "module test {\n  result := (3 + 5) * -2\n}\n";
         assert_eq!(output, expected);
     }
 
@@ -271,7 +272,7 @@ mod tests {
 
         let display_output = format!("{}", module);
         assert!(display_output.contains("module example"));
-        assert!(display_output.contains("v = true"));
+        assert!(display_output.contains("v := true"));
         assert!(display_output.contains("fn test(...)"));
         assert!(display_output.contains("module nested {...}"));
     }
