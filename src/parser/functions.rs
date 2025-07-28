@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Keyword, Token},
-    parser::{ParserContext, ParserError, ast::Statement, parse_statement},
+    parser::{ParserContext, ParserError, StatementParser, ast::Statement},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,83 +18,87 @@ pub struct Function {
     pub statements: Vec<Statement>,
 }
 
-pub fn parse_function(
-    ctx: &mut ParserContext,
-    tokens: &[Token],
-) -> Result<(Function, usize), ParserError> {
-    if tokens.len() < 3 {
-        return Err(ParserError::UnexpectedEndOfInput);
-    }
-
-    if !matches!(
-        tokens[..3],
-        [
-            Token::Keyword(Keyword::Fn),
-            Token::Identifier(_),
-            Token::OpenParen
-        ]
-    ) {
-        return Err(ParserError::UnexpectedToken(tokens[0].clone()));
-    }
-
-    let mut index = 0;
-
-    let decl = tokens[index].clone();
-    index += 1;
-
-    let name = tokens[index].clone();
-    index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
-
-    match name {
-        Token::Identifier(ref name) => {
-            ctx.enter_function(name.clone());
+pub struct FunctionParser;
+impl FunctionParser {
+    pub fn parse(
+        ctx: &mut ParserContext,
+        tokens: &[Token],
+    ) -> Result<(Function, usize), ParserError> {
+        if tokens.len() < 3 {
+            return Err(ParserError::UnexpectedEndOfInput);
         }
-        _ => {
-            return Err(ParserError::UnexpectedToken(name));
+
+        if !matches!(
+            tokens[..3],
+            [
+                Token::Keyword(Keyword::Fn),
+                Token::Identifier(_),
+                Token::OpenParen
+            ]
+        ) {
+            return Err(ParserError::UnexpectedToken(tokens[0].clone()));
         }
-    }
 
-    let mut parameters = Vec::new();
-    while !matches!(tokens[index], Token::OpenBrace) && !matches!(tokens[index], Token::CloseParen)
-    {
-        let (arg, token_length) = parse_arg(&tokens[index..])?;
-        parameters.push(arg);
-        index += token_length;
+        let mut index = 0;
 
-        // Consume comma if present
-        if matches!(tokens[index], Token::Comma) {
+        let decl = tokens[index].clone();
+        index += 1;
+
+        let name = tokens[index].clone();
+        index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
+
+        match name {
+            Token::Identifier(ref name) => {
+                ctx.enter_function(name.clone());
+            }
+            _ => {
+                return Err(ParserError::UnexpectedToken(name));
+            }
+        }
+
+        let mut parameters = Vec::new();
+        while !matches!(tokens[index], Token::OpenBrace)
+            && !matches!(tokens[index], Token::CloseParen)
+        {
+            let (arg, token_length) = parse_arg(&tokens[index..])?;
+            parameters.push(arg);
+            index += token_length;
+
+            // Consume comma if present
+            if matches!(tokens[index], Token::Comma) {
+                index += 1;
+            }
+        }
+
+        if tokens[index] == Token::CloseParen {
             index += 1;
         }
-    }
 
-    if tokens[index] == Token::CloseParen {
+        // Parse the return type
+        if tokens.len() <= index {
+            return Err(ParserError::UnexpectedEndOfInput);
+        }
+
+        if !matches!(tokens[index], Token::Identifier(_)) {
+            return Err(ParserError::UnexpectedToken(tokens[index].clone()));
+        }
+
+        let return_type = tokens[index].clone();
         index += 1;
+
+        let (statements, block_length) = parse_block(ctx, &tokens[index..])?;
+
+        Ok((
+            Function {
+                decl,
+                name,
+                parameters,
+                return_type,
+                statements,
+            },
+            index + block_length,
+        ))
     }
-
-    // Parse the return type
-    if tokens.len() <= index {
-        return Err(ParserError::UnexpectedEndOfInput);
-    }
-
-    if !matches!(tokens[index], Token::Identifier(_)) {
-        return Err(ParserError::UnexpectedToken(tokens[index].clone()));
-    }
-
-    let return_type = tokens[index].clone();
-    index += 1;
-
-    let (statements, block_length) = parse_block(ctx, &tokens[index..])?;
-
-    Ok((
-        Function {
-            decl,
-            name,
-            parameters,
-            return_type,
-            statements,
-        },
-        index + block_length,
-    ))
 }
 
 fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
@@ -143,7 +147,7 @@ fn parse_block(
     let mut statements = Vec::new();
 
     while index < tokens.len() && !matches!(tokens[index], Token::CloseBrace) {
-        let (statement, token_length) = parse_statement(ctx, &tokens[index..])?;
+        let (statement, token_length) = StatementParser::parse(ctx, &tokens[index..])?;
         statements.push(statement);
         index += token_length;
     }
@@ -171,7 +175,7 @@ mod tests {
 
         let mut ctx = ParserContext::new();
         ctx.enter_module("test_module".to_string());
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         if let Err(err) = result {
             panic!("Unexpected error: {}", err);
         }
@@ -201,7 +205,7 @@ mod tests {
 
         let mut ctx = ParserContext::new();
         ctx.enter_module("test_module".to_string());
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (function, token_count) = result.unwrap();
@@ -238,7 +242,7 @@ mod tests {
 
         let mut ctx = ParserContext::new();
         ctx.enter_module("test_module".to_string());
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         if let Err(err) = result {
             panic!("Unexpected error: {}", err);
         }
@@ -285,7 +289,7 @@ mod tests {
 
         let mut ctx = ParserContext::new();
         ctx.enter_module("test_module".to_string());
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_ok());
 
         let (function, token_count) = result.unwrap();
@@ -321,7 +325,7 @@ mod tests {
         ];
 
         let mut ctx = ParserContext::new();
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -341,7 +345,7 @@ mod tests {
         ];
 
         let mut ctx = ParserContext::new();
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -353,7 +357,7 @@ mod tests {
     fn test_parse_function_empty_input() {
         let tokens = vec![];
         let mut ctx = ParserContext::new();
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -374,7 +378,7 @@ mod tests {
         ];
 
         let mut ctx = ParserContext::new();
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
@@ -395,7 +399,7 @@ mod tests {
 
         let mut ctx = ParserContext::new();
         ctx.enter_module("test_module".to_string());
-        let result = parse_function(&mut ctx, &tokens);
+        let result = FunctionParser::parse(&mut ctx, &tokens);
         assert!(result.is_err());
         assert!(matches!(
             result.err(),
