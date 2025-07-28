@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Keyword, Token},
-    parser::{ParserError, ast::Statement, parse_statement},
+    parser::{ParserContext, ParserError, ast::Statement, parse_statement},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,10 @@ pub struct Function {
     pub statements: Vec<Statement>,
 }
 
-pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError> {
+pub fn parse_function(
+    ctx: &mut ParserContext,
+    tokens: &[Token],
+) -> Result<(Function, usize), ParserError> {
     if tokens.len() < 3 {
         return Err(ParserError::UnexpectedEndOfInput);
     }
@@ -41,6 +44,15 @@ pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError
 
     let name = tokens[index].clone();
     index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
+
+    match name {
+        Token::Identifier(ref name) => {
+            ctx.enter_function(name.clone());
+        }
+        _ => {
+            return Err(ParserError::UnexpectedToken(name));
+        }
+    }
 
     let mut parameters = Vec::new();
     while !matches!(tokens[index], Token::OpenBrace) && !matches!(tokens[index], Token::CloseParen)
@@ -71,7 +83,7 @@ pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError
     let return_type = tokens[index].clone();
     index += 1;
 
-    let (statements, block_length) = parse_block(&tokens[index..])?;
+    let (statements, block_length) = parse_block(ctx, &tokens[index..])?;
 
     Ok((
         Function {
@@ -114,7 +126,10 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
     Ok((Arg { name, type_ }, index))
 }
 
-fn parse_block(tokens: &[Token]) -> Result<(Vec<Statement>, usize), ParserError> {
+fn parse_block(
+    ctx: &mut ParserContext,
+    tokens: &[Token],
+) -> Result<(Vec<Statement>, usize), ParserError> {
     if tokens.is_empty() {
         return Err(ParserError::UnexpectedEndOfInput);
     }
@@ -128,7 +143,7 @@ fn parse_block(tokens: &[Token]) -> Result<(Vec<Statement>, usize), ParserError>
     let mut statements = Vec::new();
 
     while index < tokens.len() && !matches!(tokens[index], Token::CloseBrace) {
-        let (statement, token_length) = parse_statement(&tokens[index..])?;
+        let (statement, token_length) = parse_statement(ctx, &tokens[index..])?;
         statements.push(statement);
         index += token_length;
     }

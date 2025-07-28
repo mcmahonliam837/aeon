@@ -1,6 +1,7 @@
 use crate::{
     lex::token::{Keyword, Token},
     parser::{
+        ParserContext,
         functions::{Function, parse_function},
         parser_error::ParserError,
         variables::{Variable, parse_variable},
@@ -15,19 +16,17 @@ pub struct Module {
     pub variables: Vec<Variable>,
 }
 
-impl TryFrom<&[Token]> for Module {
-    type Error = ParserError;
-
-    fn try_from(_tokens: &[Token]) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
-pub fn parse_module(tokens: &[Token]) -> Result<Module, ParserError> {
+pub fn parse_module(ctx: &mut ParserContext, tokens: &[Token]) -> Result<Module, ParserError> {
     validate_module_decl(tokens)?;
-    let (modules, functions, variables) = parse_module_body(&tokens[2..])?;
+    let name: Token = tokens[1].clone();
+    match name {
+        Token::Identifier(ref name) => ctx.enter_module(name.clone()),
+        _ => return Err(ParserError::ModuleWithoutName),
+    }
+
+    let (modules, functions, variables) = parse_module_body(ctx, &tokens[2..])?;
     Ok(Module {
-        name: tokens[1].clone(),
+        name,
         modules,
         functions,
         variables,
@@ -75,6 +74,7 @@ fn validate_nested_module_decl(tokens: &[Token]) -> Result<(), ParserError> {
 }
 
 fn parse_module_body(
+    ctx: &mut ParserContext,
     tokens: &[Token],
 ) -> Result<(Vec<Module>, Vec<Function>, Vec<Variable>), ParserError> {
     let mut modules = Vec::new();
@@ -106,7 +106,7 @@ fn parse_module_body(
                     });
                 };
                 let (inner_modules, inner_functions, inner_variables) =
-                    parse_module_body(&tokens[3..body_token_length - 1])?;
+                    parse_module_body(ctx, &tokens[3..body_token_length - 1])?;
 
                 modules.push(Module {
                     name: tokens[1].clone(),
@@ -116,12 +116,13 @@ fn parse_module_body(
                 });
 
                 index += body_token_length + 1;
+                ctx.exit_module();
                 continue;
             }
             Token::Identifier(_) => {
                 let tokens = &tokens[index..];
 
-                let (variable, token_length) = parse_variable(tokens)?;
+                let (variable, token_length) = parse_variable(ctx, tokens)?;
 
                 variables.push(variable);
 
@@ -136,11 +137,13 @@ fn parse_module_body(
             Token::Keyword(Keyword::Fn) => {
                 let tokens = &tokens[index..];
 
-                let (function, token_length) = parse_function(tokens)?;
+                let (function, token_length) = parse_function(ctx, tokens)?;
 
                 functions.push(function);
 
                 index += token_length + 1;
+
+                ctx.exit_function();
                 continue;
             }
             Token::Newline => {

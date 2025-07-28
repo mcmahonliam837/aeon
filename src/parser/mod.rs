@@ -14,16 +14,64 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserState {
+    current_module: String,
+    current_function: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParserContext {
+    stack: Vec<ParserState>,
+}
+
+impl ParserContext {
+    pub fn new() -> Self {
+        Self { stack: vec![] }
+    }
+
+    pub fn enter_module(&mut self, module_name: String) {
+        self.stack.push(ParserState {
+            current_module: module_name,
+            current_function: None,
+        });
+    }
+
+    pub fn exit_module(&mut self) {
+        self.stack.pop();
+    }
+
+    pub fn enter_function(&mut self, function_name: String) {
+        self.stack.push(ParserState {
+            current_module: self
+                .stack
+                .last()
+                .expect("Cannot enter function without module")
+                .current_module
+                .clone(),
+            current_function: Some(function_name),
+        });
+    }
+
+    pub fn exit_function(&mut self) {
+        self.stack.pop();
+    }
+}
+
 pub struct Parser {}
 
 impl Parser {
     pub fn parse(tokens: &[Token]) -> Result<Ast, ParserError> {
-        let module = parse_module(tokens)?;
+        let mut ctx = ParserContext::new();
+        let module = parse_module(&mut ctx, tokens)?;
         Ok(Ast { root: Some(module) })
     }
 }
 
-pub fn parse_expression(tokens: &[Token]) -> Result<(Expression, usize), ParserError> {
+pub fn parse_expression(
+    _ctx: &mut ParserContext,
+    tokens: &[Token],
+) -> Result<(Expression, usize), ParserError> {
     println!("Parsing expression: {:?}", tokens);
     match tokens {
         [Token::Literal(literal), Token::Newline, ..] => {
@@ -35,14 +83,17 @@ pub fn parse_expression(tokens: &[Token]) -> Result<(Expression, usize), ParserE
     }
 }
 
-pub fn parse_statement(tokens: &[Token]) -> Result<(Statement, usize), ParserError> {
+pub fn parse_statement(
+    ctx: &mut ParserContext,
+    tokens: &[Token],
+) -> Result<(Statement, usize), ParserError> {
     match tokens {
         [Token::Identifier(_), Token::Operator(Operator::Assign), ..] => {
-            let (variable, token_length) = parse_variable(tokens)?;
+            let (variable, token_length) = parse_variable(ctx, tokens)?;
             Ok((Statement::Variable(variable), token_length))
         }
         tokens if !tokens.is_empty() => {
-            let (expression, token_length) = parse_expression(tokens)?;
+            let (expression, token_length) = parse_expression(ctx, tokens)?;
             Ok((Statement::Expression(expression), token_length))
         }
         _ => Err(ParserError::UnexpectedEndOfInput),
