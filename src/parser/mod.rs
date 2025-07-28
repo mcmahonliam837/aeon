@@ -6,6 +6,9 @@ pub mod parser_error;
 pub mod statement;
 pub mod variables;
 
+#[cfg(test)]
+mod pretty_print_tests;
+
 use crate::{
     lex::token::Token,
     parser::{ast::Ast, modules::ModuleParser, parser_error::ParserError},

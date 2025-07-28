@@ -7,6 +7,7 @@ use crate::{
         variables::{Variable, VariableParser},
     },
 };
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
@@ -14,6 +15,35 @@ pub struct Module {
     pub modules: Vec<Module>,
     pub functions: Vec<Function>,
     pub variables: Vec<Variable>,
+}
+
+impl fmt::Display for Module {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "module {}", self.name)?;
+
+        if !self.variables.is_empty() || !self.functions.is_empty() || !self.modules.is_empty() {
+            write!(f, " {{")?;
+
+            // Display variables
+            for var in &self.variables {
+                write!(f, "\n  {}", var)?;
+            }
+
+            // Display functions
+            for func in &self.functions {
+                write!(f, "\n  fn {}(...)", func.name)?;
+            }
+
+            // Display nested modules
+            for module in &self.modules {
+                write!(f, "\n  module {} {{...}}", module.name)?;
+            }
+
+            write!(f, "\n}}")?;
+        }
+
+        Ok(())
+    }
 }
 
 pub struct ModuleParser;

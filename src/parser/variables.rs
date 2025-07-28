@@ -4,11 +4,18 @@ use crate::{
         ParserContext, ast::Expression, expression::ExpressionParser, parser_error::ParserError,
     },
 };
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Variable {
     pub name: Token,
     pub expression: Expression,
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} := {}", self.name, self.expression)
+    }
 }
 
 pub struct VariableParser;
