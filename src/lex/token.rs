@@ -32,7 +32,7 @@ impl fmt::Display for Token {
             Token::CloseBracket => write!(f, "]"),
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
-            Token::Newline => write!(f, "\n"),
+            Token::Newline => writeln!(f),
         }
     }
 }
@@ -116,21 +116,21 @@ impl TryFrom<&str> for Literal {
             "true" => Ok(Literal::Boolean(true)),
             "false" => Ok(Literal::Boolean(false)),
             s if s.starts_with("0x") => {
-                if let Ok(_) = u64::from_str_radix(&s[2..], 16) {
+                if u64::from_str_radix(&s[2..], 16).is_ok() {
                     Ok(Literal::Number(s.to_string()))
                 } else {
                     Err(())
                 }
             }
             s if s.starts_with("0b") => {
-                if let Ok(_) = u64::from_str_radix(&s[2..], 2) {
+                if u64::from_str_radix(&s[2..], 2).is_ok() {
                     Ok(Literal::Number(s.to_string()))
                 } else {
                     Err(())
                 }
             }
             s if s.starts_with("0o") => {
-                if let Ok(_) = u64::from_str_radix(&s[2..], 8) {
+                if u64::from_str_radix(&s[2..], 8).is_ok() {
                     Ok(Literal::Number(s.to_string()))
                 } else {
                     Err(())

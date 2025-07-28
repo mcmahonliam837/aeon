@@ -20,14 +20,14 @@ pub struct ParserState {
     current_function: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParserContext {
     stack: Vec<ParserState>,
 }
 
 impl ParserContext {
     pub fn new() -> Self {
-        Self { stack: vec![] }
+        Self::default()
     }
 
     pub fn enter_module(&mut self, module_name: String) {

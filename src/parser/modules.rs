@@ -106,6 +106,7 @@ impl ModuleParser {
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     fn parse_module_body(
         ctx: &mut ParserContext,
         tokens: &[Token],

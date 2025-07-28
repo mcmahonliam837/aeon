@@ -15,6 +15,12 @@ impl Ast {
     }
 }
 
+impl Default for Ast {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Variable(Variable),

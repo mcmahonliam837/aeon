@@ -52,7 +52,7 @@ impl<R: BufRead> Lexer<R> {
             tokens: Vec::new(),
             state: VecDeque::new(),
         };
-        let mut lexer = Self { reader: reader };
+        let mut lexer = Self { reader };
         lexer.run(context)
     }
 
@@ -196,13 +196,15 @@ impl<R: BufRead> Lexer<R> {
     }
 
     fn should_insert_newline(tokens: &[Token]) -> bool {
-        tokens.last().map_or(false, |last_token| match last_token {
-            Token::CloseBrace => true,
-            Token::CloseBracket => true,
-            Token::CloseParen => true,
-            Token::Identifier(_) => true,
-            Token::Literal(_) => true,
-            _ => false,
+        tokens.last().is_some_and(|last_token| {
+            matches!(
+                last_token,
+                Token::CloseBrace
+                    | Token::CloseBracket
+                    | Token::CloseParen
+                    | Token::Identifier(_)
+                    | Token::Literal(_)
+            )
         })
     }
 }
