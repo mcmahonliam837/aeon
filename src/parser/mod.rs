@@ -7,13 +7,8 @@ pub mod statement;
 pub mod variables;
 
 use crate::{
-    lex::token::{Operator, Token},
-    parser::{
-        ast::{Ast, Expression, Statement},
-        modules::ModuleParser,
-        parser_error::ParserError,
-        variables::VariableParser,
-    },
+    lex::token::Token,
+    parser::{ast::Ast, modules::ModuleParser, parser_error::ParserError},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +70,7 @@ mod tests {
 
     use crate::{
         lex::token::{Keyword, Literal, Operator},
-        parser::{modules::Module, variables::Variable},
+        parser::{ast::Expression, modules::Module, variables::Variable},
     };
 
     use super::*;
