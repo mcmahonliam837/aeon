@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Keyword, Token},
-    parser::{ParserError, ast::Statement, parse_statement, variables::Variable},
+    parser::{ParserError, ast::Statement, parse_statement},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,7 @@ pub struct Function {
 }
 
 pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError> {
-    if tokens.is_empty() {
+    if tokens.len() < 3 {
         return Err(ParserError::UnexpectedEndOfInput);
     }
 
@@ -42,12 +42,16 @@ pub fn parse_function(tokens: &[Token]) -> Result<(Function, usize), ParserError
     index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
 
     let mut parameters = Vec::new();
-    while !matches!(tokens[index], Token::CloseParen) {
+    while !matches!(tokens[index], Token::OpenBrace) && !matches!(tokens[index], Token::CloseParen)
+    {
         let (arg, token_length) = parse_arg(&tokens[index..])?;
         parameters.push(arg);
         index += token_length;
     }
 
+    if tokens[index] == Token::CloseParen {
+        index += 1;
+    }
     let (statements, block_length) = parse_block(&tokens[index..])?;
 
     Ok((
@@ -82,12 +86,12 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
     let type_ = tokens[index].clone();
     index += 1;
 
-    if !matches!(tokens[index], Token::Comma) || !matches!(tokens[index], Token::CloseParen) {
+    if !matches!(tokens[index], Token::Comma) && !matches!(tokens[index], Token::CloseParen) {
         return Err(ParserError::UnexpectedToken(tokens[index].clone()));
     }
-    index += 1;
 
-    Ok((Arg { name, type_ }, index))
+    // Don't consume the delimiter - let the caller handle it
+    Ok((Arg { name, type_ }, index + 1))
 }
 
 fn parse_block(tokens: &[Token]) -> Result<(Vec<Statement>, usize), ParserError> {
@@ -103,11 +107,336 @@ fn parse_block(tokens: &[Token]) -> Result<(Vec<Statement>, usize), ParserError>
 
     let mut statements = Vec::new();
 
-    while !matches!(tokens[index], Token::CloseBrace) {
+    while index < tokens.len() && !matches!(tokens[index], Token::CloseBrace) {
         let (statement, token_length) = parse_statement(&tokens[index..])?;
         statements.push(statement);
         index += token_length;
     }
 
     Ok((statements, index + 1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::token::{Keyword, Literal, Operator, Token};
+    use crate::parser::ast::{Expression, Statement};
+
+    #[test]
+    fn test_parse_empty_function() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("test".to_string()),
+            Token::OpenParen,
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        if let Err(err) = result {
+            panic!("Unexpected error: {}", err);
+        }
+        assert!(result.is_ok());
+
+        let (function, token_count) = result.unwrap();
+        assert_eq!(function.name, Token::Identifier("test".to_string()));
+        assert_eq!(function.parameters.len(), 0);
+        assert_eq!(function.statements.len(), 0);
+        assert_eq!(token_count, 6);
+    }
+
+    #[test]
+    fn test_parse_function_with_single_parameter() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("greet".to_string()),
+            Token::OpenParen,
+            Token::Identifier("name".to_string()),
+            Token::Identifier("string".to_string()),
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_ok());
+
+        let (function, token_count) = result.unwrap();
+        assert_eq!(function.name, Token::Identifier("greet".to_string()));
+        assert_eq!(function.parameters.len(), 1);
+        assert_eq!(
+            function.parameters[0].name,
+            Token::Identifier("name".to_string())
+        );
+        assert_eq!(
+            function.parameters[0].type_,
+            Token::Identifier("string".to_string())
+        );
+        assert_eq!(token_count, 8);
+    }
+
+    #[test]
+    fn test_parse_function_with_multiple_parameters() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("add".to_string()),
+            Token::OpenParen,
+            Token::Identifier("a".to_string()),
+            Token::Identifier("int".to_string()),
+            Token::Comma,
+            Token::Identifier("b".to_string()),
+            Token::Identifier("int".to_string()),
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        if let Err(err) = result {
+            panic!("Unexpected error: {}", err);
+        }
+        assert!(result.is_ok());
+
+        let (function, token_count) = result.unwrap();
+        assert_eq!(function.name, Token::Identifier("add".to_string()));
+        assert_eq!(function.parameters.len(), 2);
+        assert_eq!(
+            function.parameters[0].name,
+            Token::Identifier("a".to_string())
+        );
+        assert_eq!(
+            function.parameters[0].type_,
+            Token::Identifier("int".to_string())
+        );
+        assert_eq!(
+            function.parameters[1].name,
+            Token::Identifier("b".to_string())
+        );
+        assert_eq!(
+            function.parameters[1].type_,
+            Token::Identifier("int".to_string())
+        );
+        assert_eq!(token_count, 11);
+    }
+
+    #[test]
+    fn test_parse_function_with_body() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("main".to_string()),
+            Token::OpenParen,
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Assign),
+            Token::Literal(Literal::Number("42".to_string())),
+            Token::Newline,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_ok());
+
+        let (function, token_count) = result.unwrap();
+        assert_eq!(function.name, Token::Identifier("main".to_string()));
+        assert_eq!(function.parameters.len(), 0);
+        assert_eq!(function.statements.len(), 1);
+
+        match &function.statements[0] {
+            Statement::Variable(var) => {
+                assert_eq!(var.name, Token::Identifier("x".to_string()));
+                match &var.expression {
+                    Expression::Literal(lit) => {
+                        assert_eq!(*lit, Literal::Number("42".to_string()));
+                    }
+                    _ => panic!("Expected literal expression"),
+                }
+            }
+            _ => panic!("Expected variable statement"),
+        }
+
+        assert_eq!(token_count, 10);
+    }
+
+    #[test]
+    fn test_parse_function_missing_name() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::OpenParen,
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_function_missing_open_paren() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Fn),
+            Token::Identifier("test".to_string()),
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_function_empty_input() {
+        let tokens = vec![];
+        let result = parse_function(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedEndOfInput)
+        ));
+    }
+
+    #[test]
+    fn test_parse_function_wrong_token_type() {
+        let tokens = vec![
+            Token::Identifier("not_a_function".to_string()),
+            Token::Identifier("test".to_string()),
+            Token::OpenParen,
+            Token::CloseParen,
+            Token::OpenBrace,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_function(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_arg_valid() {
+        let tokens = vec![
+            Token::Identifier("param".to_string()),
+            Token::Identifier("string".to_string()),
+            Token::Comma,
+        ];
+
+        let result = parse_arg(&tokens);
+        assert!(result.is_ok());
+
+        let (arg, token_count) = result.unwrap();
+        assert_eq!(arg.name, Token::Identifier("param".to_string()));
+        assert_eq!(arg.type_, Token::Identifier("string".to_string()));
+        assert_eq!(token_count, 3);
+    }
+
+    #[test]
+    fn test_parse_arg_last_parameter() {
+        let tokens = vec![
+            Token::Identifier("param".to_string()),
+            Token::Identifier("int".to_string()),
+            Token::CloseParen,
+        ];
+
+        let result = parse_arg(&tokens);
+        assert!(result.is_ok());
+
+        let (arg, token_count) = result.unwrap();
+        assert_eq!(arg.name, Token::Identifier("param".to_string()));
+        assert_eq!(arg.type_, Token::Identifier("int".to_string()));
+        assert_eq!(token_count, 3);
+    }
+
+    #[test]
+    fn test_parse_arg_missing_type() {
+        let tokens = vec![Token::Identifier("param".to_string()), Token::Comma];
+
+        let result = parse_arg(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_arg_empty_input() {
+        let tokens = vec![];
+        let result = parse_arg(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedEndOfInput)
+        ));
+    }
+
+    #[test]
+    fn test_parse_block_empty() {
+        let tokens = vec![Token::OpenBrace, Token::CloseBrace];
+
+        let result = parse_block(&tokens);
+        assert!(result.is_ok());
+
+        let (statements, token_count) = result.unwrap();
+        assert_eq!(statements.len(), 0);
+        assert_eq!(token_count, 2);
+    }
+
+    #[test]
+    fn test_parse_block_with_statements() {
+        let tokens = vec![
+            Token::OpenBrace,
+            Token::Identifier("x".to_string()),
+            Token::Operator(Operator::Assign),
+            Token::Literal(Literal::Number("10".to_string())),
+            Token::Newline,
+            Token::Identifier("y".to_string()),
+            Token::Operator(Operator::Assign),
+            Token::Literal(Literal::Number("20".to_string())),
+            Token::Newline,
+            Token::CloseBrace,
+        ];
+
+        let result = parse_block(&tokens);
+        assert!(result.is_ok());
+
+        let (statements, token_count) = result.unwrap();
+        assert_eq!(statements.len(), 2);
+        assert_eq!(token_count, 10);
+    }
+
+    #[test]
+    fn test_parse_block_missing_open_brace() {
+        let tokens = vec![Token::Identifier("x".to_string()), Token::CloseBrace];
+
+        let result = parse_block(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedToken(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_block_empty_input() {
+        let tokens = vec![];
+        let result = parse_block(&tokens);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err(),
+            Some(ParserError::UnexpectedEndOfInput)
+        ));
+    }
 }

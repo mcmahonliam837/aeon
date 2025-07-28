@@ -116,6 +116,7 @@ fn parse_module_body(
                 });
 
                 index += body_token_length + 1;
+                continue;
             }
             Token::Identifier(_) => {
                 let tokens = &tokens[index..];
@@ -124,7 +125,13 @@ fn parse_module_body(
 
                 variables.push(variable);
 
-                index += token_length + 1;
+                index += token_length;
+
+                // Skip newline if present
+                if index < tokens.len() && matches!(tokens[index], Token::Newline) {
+                    index += 1;
+                }
+                continue;
             }
             Token::Keyword(Keyword::Fn) => {
                 let tokens = &tokens[index..];
@@ -134,8 +141,11 @@ fn parse_module_body(
                 functions.push(function);
 
                 index += token_length + 1;
+                continue;
             }
-            Token::Newline => {}
+            Token::Newline => {
+                // Just increment once at the end of the loop
+            }
             _ => return Err(ParserError::UnexpectedToken(token.clone())),
         }
         index += 1;

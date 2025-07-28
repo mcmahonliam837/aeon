@@ -36,9 +36,8 @@ pub fn parse_expression(tokens: &[Token]) -> Result<(Expression, usize), ParserE
 }
 
 pub fn parse_statement(tokens: &[Token]) -> Result<(Statement, usize), ParserError> {
-    println!("Parsing statement: {:?}", tokens);
     match tokens {
-        [Token::Literal(_), Token::Operator(Operator::Assign), ..] => {
+        [Token::Identifier(_), Token::Operator(Operator::Assign), ..] => {
             let (variable, token_length) = parse_variable(tokens)?;
             Ok((Statement::Variable(variable), token_length))
         }
