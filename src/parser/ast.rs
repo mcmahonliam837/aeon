@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Literal, Operator, Token},
-    parser::{block::Block, modules::Module},
+    parser::{block::Block, functions::TypeInfo, modules::Module},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,6 +49,6 @@ pub enum Expression {
 pub struct Variable {
     pub name: String,
     pub is_decl: bool,
-    pub is_mut: bool,
-    pub expression: Box<Expression>,
+    pub expression: Option<Box<Expression>>,
+    pub type_info: Option<TypeInfo>,
 }

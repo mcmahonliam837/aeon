@@ -2,11 +2,11 @@ use crate::{
     lex::token::{Keyword, Literal, Token},
     parser::{
         ParserContext,
-        ast::Variable,
+        ast::{Expression, Statement, Variable},
         functions::{Function, FunctionParser},
         parser_error::ParserError,
-        token_stream::{self, TokenStream},
-        variables::VariableParser,
+        statement::StatementParser,
+        token_stream::TokenStream,
     },
 };
 
@@ -65,9 +65,18 @@ impl ModuleParser {
         let mut functions = Vec::<Function>::new();
         let mut variables = Vec::<Variable>::new();
 
-        while !stream.is_at_end() {
-            match stream.peek() {
-                Some(Token::Keyword(Keyword::Module)) => {
+        loop {
+            if stream.is_at_end() {
+                break;
+            }
+
+            let token = stream
+                .peek()
+                .cloned()
+                .expect("Should have current token, since we are not at the end of the stream");
+
+            match token {
+                Token::Keyword(Keyword::Module) => {
                     let decl = stream.consume_exact(Token::Keyword(Keyword::Module))?;
 
                     let name = match stream.consume(Token::Identifier(String::new()))? {
@@ -81,41 +90,12 @@ impl ModuleParser {
                     stream.consume(Token::OpenBrace)?;
                     _ = stream.try_consume(Token::Newline);
 
-                    // Find matching closing brace
-                    let mut brace_level = 1;
-                    let body_start = stream.position();
-
-                    while !stream.is_at_end() && brace_level > 0 {
-                        let token = stream.current()?;
-                        match token {
-                            Token::OpenBrace => {
-                                brace_level += 1;
-                                stream.advance(1)?;
-                            }
-                            Token::CloseBrace => {
-                                brace_level -= 1;
-                                stream.advance(1)?;
-                                if brace_level == 0 {
-                                    break;
-                                }
-                            }
-                            _ => stream.advance(1)?,
-                        }
-                    }
-
-                    if brace_level > 0 {
-                        return Err(ParserError::MissingClosingBrace {
-                            start: decl,
-                            end: None,
-                        });
-                    }
-
                     // Parse the body with a new stream
                     // -2 due to the stream having advanced to the closing brace
                     // then to the next token
-                    let mut body_stream = stream.substream(body_start, stream.position() - 2);
+                    // let mut body_stream = stream.substream(body_start, stream.position() - 2);
                     let (inner_imports, inner_modules, inner_functions, inner_variables) =
-                        Self::parse_module_body(ctx, &mut body_stream)?;
+                        Self::parse_module_body(ctx, stream)?;
 
                     modules.push(Module {
                         decl,
@@ -126,34 +106,29 @@ impl ModuleParser {
                         variables: inner_variables,
                     });
 
-                    ctx.exit_module();
                     continue;
                 }
-                Some(Token::Identifier(_)) => {
-                    let mut temp_stream = stream.fork();
-                    match VariableParser::parse(ctx, &mut temp_stream) {
-                        Ok((variable, consumed)) => {
+                token @ Token::Identifier(_) => {
+                    match StatementParser::parse(ctx, stream)? {
+                        Statement::Expression(Expression::Variable(variable)) => {
                             variables.push(variable);
-                            stream.advance(consumed)?;
                             stream.try_consume(Token::Newline);
                         }
-                        Err(e) => {
-                            return Err(e);
+                        _ => {
+                            return Err(ParserError::UnexpectedToken(token.clone()));
                         }
                     }
                     // TODO: Match for function calls
                     continue;
                 }
-                Some(Token::Keyword(Keyword::Fn)) => {
-                    let mut temp_stream = stream.fork();
-                    let (function, consumed) = FunctionParser::parse(ctx, &mut temp_stream)?;
+                Token::Keyword(Keyword::Fn) => {
+                    let function = FunctionParser::parse(ctx, stream)?;
                     functions.push(function);
-                    stream.advance(consumed)?;
                     stream.try_consume(Token::Newline);
                     ctx.exit_function();
                     continue;
                 }
-                Some(Token::Keyword(Keyword::Import)) => {
+                Token::Keyword(Keyword::Import) => {
                     let decl = stream.consume(Token::Keyword(Keyword::Import))?;
 
                     let Token::Literal(Literal::String(path)) =
@@ -166,11 +141,15 @@ impl ModuleParser {
 
                     continue;
                 }
-                Some(_) => stream.advance(1)?,
-                None => break,
+                Token::CloseBrace => {
+                    stream.advance(1)?;
+                    break;
+                }
+                _ => stream.advance(1)?,
             }
         }
 
+        ctx.exit_module();
         Ok((imports, modules, functions, variables))
     }
 }

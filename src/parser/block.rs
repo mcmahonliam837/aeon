@@ -14,39 +14,27 @@ pub struct Block {
 pub struct BlockParser;
 
 impl BlockParser {
-    pub fn parse(
-        ctx: &mut ParserContext,
-        stream: &mut TokenStream,
-    ) -> Result<(Block, usize), ParserError> {
-        let start_position = stream.position();
-
+    pub fn parse(ctx: &mut ParserContext, stream: &mut TokenStream) -> Result<Block, ParserError> {
         // Consume opening brace
         stream.consume(Token::OpenBrace)?;
+        stream.try_consume(Token::Newline);
 
         let mut statements = Vec::new();
 
-        while !stream.is_at_end() {
+        loop {
             match stream.peek() {
                 Some(Token::CloseBrace) => {
                     stream.advance(1)?;
                     break;
                 }
-                _ => {
-                    let mut fork = stream.fork();
-                    let (statement, consumed) = StatementParser::parse(ctx, &mut fork)?;
+                Some(_) => {
+                    let statement = StatementParser::parse(ctx, stream)?;
                     statements.push(statement);
-
-                    stream.advance(consumed)?;
-
-                    // Advance the main stream
-                    while stream.position() < fork.position() {
-                        stream.advance(1)?;
-                    }
                 }
+                None => break,
             }
         }
 
-        let end_position = stream.position();
-        Ok((Block { statements }, end_position - start_position))
+        Ok(Block { statements })
     }
 }

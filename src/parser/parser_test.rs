@@ -106,7 +106,7 @@ mod tests {
         let function = &module.functions[0];
         assert_eq!(function.name, "main");
         assert!(function.parameters.is_empty());
-        assert_eq!(function.return_type.name, "void");
+        assert_eq!(function.return_type.name, Some("void".to_string()));
         assert!(function.block.statements.is_empty());
     }
 
@@ -143,15 +143,21 @@ mod tests {
             function.parameters[0].name,
             Token::Identifier("x".to_string())
         );
-        assert_eq!(function.parameters[0].type_info.name, "i32");
+        assert_eq!(
+            function.parameters[0].type_info.name,
+            Some("i32".to_string())
+        );
 
         assert_eq!(
             function.parameters[1].name,
             Token::Identifier("y".to_string())
         );
-        assert_eq!(function.parameters[1].type_info.name, "i32");
+        assert_eq!(
+            function.parameters[1].type_info.name,
+            Some("i32".to_string())
+        );
 
-        assert_eq!(function.return_type.name, "i32");
+        assert_eq!(function.return_type.name, Some("i32".to_string()));
     }
 
     #[test]
@@ -178,9 +184,12 @@ mod tests {
         let variable = &module.variables[0];
         assert_eq!(variable.name, "x");
         assert!(variable.is_decl);
-        assert!(!variable.is_mut);
 
-        match &*variable.expression {
+        let Some(expr) = variable.expression.as_ref() else {
+            panic!("Expected variable expression");
+        };
+
+        match &(**expr) {
             Expression::Literal(Literal::Number(n)) => assert_eq!(n, "42"),
             _ => panic!("Expected number literal"),
         }
@@ -214,7 +223,7 @@ mod tests {
         assert_eq!(module.modules.len(), 1);
 
         let inner_module = &module.modules[0];
-        assert_eq!(inner_module.name, "Inner");
+        assert_eq!(inner_module.name, "Main.Inner");
         assert_eq!(inner_module.functions.len(), 1);
         assert_eq!(inner_module.functions[0].name, "helper");
     }
@@ -240,6 +249,7 @@ mod tests {
         ];
 
         let result = Parser::parse(&tokens);
+        println!("{:?}", result);
         assert!(result.is_ok());
 
         let ast = result.unwrap();
@@ -252,7 +262,8 @@ mod tests {
             Statement::Expression(Expression::Variable(var)) => {
                 assert_eq!(var.name, "x");
                 assert!(var.is_decl);
-                match &*var.expression {
+                let expr = var.expression.as_ref().unwrap();
+                match &**expr {
                     Expression::Literal(Literal::Number(n)) => assert_eq!(n, "10"),
                     _ => panic!("Expected number literal"),
                 }
@@ -411,7 +422,7 @@ mod tests {
 
         // Check nested module
         let utils_module = &module.modules[0];
-        assert_eq!(utils_module.name, "Utils");
+        assert_eq!(utils_module.name, "Calculator.Utils");
         assert_eq!(utils_module.functions.len(), 1);
         assert_eq!(utils_module.functions[0].name, "square");
 

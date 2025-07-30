@@ -17,6 +17,42 @@ pub enum Token {
     Newline,
 }
 
+impl Token {
+    pub fn is_equality(&self) -> bool {
+        matches!(self, Token::Operator(Operator::Equal))
+            || matches!(self, Token::Operator(Operator::NotEqual))
+    }
+
+    pub fn is_comparison(&self) -> bool {
+        matches!(self, Token::Operator(Operator::Less))
+            || matches!(self, Token::Operator(Operator::LessEqual))
+            || matches!(self, Token::Operator(Operator::Greater))
+            || matches!(self, Token::Operator(Operator::GreaterEqual))
+    }
+
+    pub fn is_term(&self) -> bool {
+        matches!(self, Token::Operator(Operator::Plus))
+            || matches!(self, Token::Operator(Operator::Minus))
+    }
+
+    pub fn is_factor(&self) -> bool {
+        matches!(self, Token::Operator(Operator::Star))
+            || matches!(self, Token::Operator(Operator::Slash))
+            || matches!(self, Token::Operator(Operator::Percent))
+    }
+
+    pub fn is_unary(&self) -> bool {
+        matches!(self, Token::Operator(Operator::Minus))
+            || matches!(self, Token::Operator(Operator::Plus))
+    }
+
+    pub fn is_primary(&self) -> bool {
+        matches!(self, Token::Identifier(_))
+            || matches!(self, Token::Literal(_))
+            || matches!(self, Token::OpenParen)
+    }
+}
+
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

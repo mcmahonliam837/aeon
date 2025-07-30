@@ -15,7 +15,8 @@ pub struct Arg {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeInfo {
-    pub name: String,
+    pub name: Option<String>,
+    pub is_mut: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,13 +33,9 @@ impl FunctionParser {
     pub fn parse(
         ctx: &mut ParserContext,
         stream: &mut TokenStream,
-    ) -> Result<(Function, usize), ParserError> {
-        let start_position = stream.position();
-
-        // Consume 'fn' keyword
+    ) -> Result<Function, ParserError> {
         let decl = stream.consume(Token::Keyword(Keyword::Fn))?;
 
-        // Consume function name
         let name_token = stream.consume(Token::Identifier(String::new()))?;
         let name = match name_token {
             Token::Identifier(name) => {
@@ -50,7 +47,6 @@ impl FunctionParser {
             }
         };
 
-        // Consume opening parenthesis
         stream.consume(Token::OpenParen)?;
 
         let mut parameters = Vec::new();
@@ -62,11 +58,8 @@ impl FunctionParser {
                 }
                 Some(Token::OpenBrace) => break,
                 _ => {
-                    let mut fork = stream.fork();
-                    let (arg, consumed) = parse_arg(&mut fork)?;
+                    let arg = parse_arg(stream)?;
                     parameters.push(arg);
-
-                    stream.advance(consumed)?;
 
                     // Consume comma if present
                     stream.try_consume(Token::Comma);
@@ -81,48 +74,45 @@ impl FunctionParser {
             Some(Token::Identifier(_)) => {
                 let type_token = stream.consume(Token::Identifier(String::new()))?;
                 match type_token {
-                    Token::Identifier(type_name) => TypeInfo { name: type_name },
+                    Token::Identifier(type_name) => TypeInfo {
+                        name: Some(type_name),
+                        is_mut: true,
+                    },
                     _ => unreachable!(),
                 }
             }
             Some(Token::OpenBrace) => TypeInfo {
-                name: "void".to_string(),
+                name: Some("void".to_string()),
+                is_mut: false,
             },
             _ => {
                 return Err(ParserError::UnexpectedToken(stream.current()?.clone()));
             }
         };
 
-        let mut fork = stream.fork();
-        let (block, consumed) = BlockParser::parse(ctx, &mut fork)?;
+        let block = BlockParser::parse(ctx, stream)?;
 
-        stream.advance(consumed)?;
-
-        let end_position = stream.position();
-
-        Ok((
-            Function {
-                decl,
-                name,
-                parameters,
-                return_type,
-                block,
-            },
-            end_position - start_position,
-        ))
+        Ok(Function {
+            decl,
+            name,
+            parameters,
+            return_type,
+            block,
+        })
     }
 }
 
-fn parse_arg(stream: &mut TokenStream) -> Result<(Arg, usize), ParserError> {
-    let start_position = stream.position();
-
+fn parse_arg(stream: &mut TokenStream) -> Result<Arg, ParserError> {
     // Parse argument name
     let name = stream.consume(Token::Identifier(String::new()))?;
 
     // Parse argument type
     let type_token = stream.consume(Token::Identifier(String::new()))?;
     let type_info = match type_token {
-        Token::Identifier(type_name) => TypeInfo { name: type_name },
+        Token::Identifier(type_name) => TypeInfo {
+            name: Some(type_name),
+            is_mut: false,
+        },
         _ => return Err(ParserError::UnexpectedToken(type_token)),
     };
 
@@ -135,6 +125,5 @@ fn parse_arg(stream: &mut TokenStream) -> Result<(Arg, usize), ParserError> {
         None => return Err(ParserError::UnexpectedEndOfInput),
     }
 
-    let end_position = stream.position();
-    Ok((Arg { name, type_info }, end_position - start_position))
+    Ok(Arg { name, type_info })
 }

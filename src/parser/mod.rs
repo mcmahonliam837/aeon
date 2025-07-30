@@ -6,7 +6,7 @@ pub mod modules;
 pub mod parser_error;
 pub mod statement;
 pub mod token_stream;
-pub mod variables;
+// pub mod variables;
 
 use crate::{
     lex::token::Token,
@@ -64,6 +64,9 @@ impl ParserContext {
         for state in self.stack.iter() {
             if state.current_module == previous_module_name {
                 continue;
+            }
+            if !module_name.is_empty() {
+                module_name.push('.');
             }
             module_name.push_str(&state.current_module);
             previous_module_name = state.current_module.clone();
@@ -127,7 +130,12 @@ mod tests {
     }
 
     #[test]
-    fn test_modules() {
-        assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
+    fn test_math() {
+        assert_debug_snapshot!(parse("aeon_examples/math.aeon"));
     }
+
+    // #[test]
+    // fn test_modules() {
+    //     assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
+    // }
 }

@@ -88,6 +88,22 @@ impl<'a> TokenStream<'a> {
             .ok_or(ParserError::UnexpectedEndOfInput)
     }
 
+    pub fn previous(&self) -> Result<&Token, ParserError> {
+        if self.position == 0 {
+            Err(ParserError::UnexpectedEndOfInput)
+        } else {
+            self.tokens
+                .get(self.position - 1)
+                .ok_or(ParserError::UnexpectedEndOfInput)
+        }
+    }
+
+    pub fn window(&self, n: usize) -> Vec<Option<&Token>> {
+        (self.position..self.position + n)
+            .map(|range| self.tokens.get(range))
+            .collect()
+    }
+
     /// Peek at the current token without consuming it (returns None if at end)
     pub fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.position)
@@ -171,21 +187,6 @@ impl<'a> TokenStream<'a> {
         }
 
         consumed
-    }
-
-    /// Fork the stream to create a new stream starting at the current position
-    pub fn fork(&self) -> TokenStream<'a> {
-        TokenStream {
-            tokens: &self.tokens[self.position..],
-            position: 0,
-        }
-    }
-
-    pub fn substream(&self, start: usize, end: usize) -> TokenStream<'a> {
-        TokenStream {
-            tokens: &self.tokens[start..end],
-            position: 0,
-        }
     }
 }
 

@@ -239,25 +239,6 @@ mod tests {
     }
 
     #[test]
-    fn test_fork() {
-        let tokens = create_test_tokens();
-        let mut stream = TokenStream::new(&tokens);
-
-        // Advance original stream
-        stream.advance(3).unwrap();
-        assert_eq!(stream.position(), 3);
-
-        // Fork creates new stream from current position
-        let forked = stream.fork();
-        assert_eq!(forked.position(), 0);
-        assert_eq!(forked.current().unwrap(), &Token::Keyword(Keyword::Fn));
-
-        // Original stream unchanged
-        assert_eq!(stream.position(), 3);
-        assert_eq!(stream.current().unwrap(), &Token::Keyword(Keyword::Fn));
-    }
-
-    #[test]
     fn test_remaining() {
         let tokens = create_test_tokens();
         let mut stream = TokenStream::new(&tokens);

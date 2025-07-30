@@ -1,6 +1,6 @@
 ---
 source: src/parser/mod.rs
-expression: "parse(\"aeon_examples/hello_world.aeon\")"
+expression: "parse(\"aeon_examples/math.aeon\")"
 ---
 Ok(
     Ast {
@@ -10,14 +10,7 @@ Ok(
                     Module,
                 ),
                 name: "Main",
-                imports: [
-                    Import {
-                        path: "std/io",
-                        decl: Keyword(
-                            Import,
-                        ),
-                    },
-                ],
+                imports: [],
                 modules: [],
                 functions: [
                     Function {
@@ -37,14 +30,22 @@ Ok(
                                 Expression(
                                     Variable(
                                         Variable {
-                                            name: "tmp",
+                                            name: "a",
                                             is_decl: true,
                                             expression: Some(
-                                                Literal(
-                                                    Number(
-                                                        "1",
+                                                Binary {
+                                                    left: Literal(
+                                                        Number(
+                                                            "5",
+                                                        ),
                                                     ),
-                                                ),
+                                                    right: Literal(
+                                                        Number(
+                                                            "1",
+                                                        ),
+                                                    ),
+                                                    operator: Plus,
+                                                },
                                             ),
                                             type_info: Some(
                                                 TypeInfo {
