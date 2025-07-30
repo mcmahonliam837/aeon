@@ -102,8 +102,6 @@ impl FunctionParser {
             }
         };
 
-        index += 1;
-
         let (block, block_length) = BlockParser::parse(ctx, &tokens[index..])?;
 
         Ok((

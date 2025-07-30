@@ -22,7 +22,7 @@ impl BlockParser {
             return Err(ParserError::UnexpectedToken(tokens[0].clone()));
         }
 
-        let mut index = 0;
+        let mut index = 1;
 
         let mut statements = Vec::new();
 
