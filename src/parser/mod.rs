@@ -3,7 +3,6 @@ pub mod expression;
 pub mod functions;
 pub mod modules;
 pub mod parser_error;
-pub mod pretty_print;
 pub mod statement;
 pub mod variables;
 

@@ -65,6 +65,7 @@ pub enum Keyword {
     Else,
     Return,
     Null,
+    Void,
 }
 
 impl fmt::Display for Keyword {
@@ -79,6 +80,7 @@ impl fmt::Display for Keyword {
             Keyword::Else => write!(f, "else"),
             Keyword::Return => write!(f, "return"),
             Keyword::Null => write!(f, "null"),
+            Keyword::Void => write!(f, "void"),
         }
     }
 }
@@ -96,6 +98,7 @@ impl TryFrom<&str> for Keyword {
             "else" => Ok(Keyword::Else),
             "return" => Ok(Keyword::Return),
             "null" => Ok(Keyword::Null),
+            "void" => Ok(Keyword::Void),
             _ => Err(()),
         }
     }

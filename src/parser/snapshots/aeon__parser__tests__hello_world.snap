@@ -1,0 +1,56 @@
+---
+source: src/parser/mod.rs
+expression: "parse(\"aeon_examples/hello_world.aeon\")"
+---
+Ok(
+    Ast {
+        root: Some(
+            Module {
+                decl: Keyword(
+                    Module,
+                ),
+                name: "Main",
+                imports: [
+                    Import {
+                        path: "std/io",
+                        decl: Keyword(
+                            Import,
+                        ),
+                    },
+                ],
+                modules: [],
+                functions: [
+                    Function {
+                        decl: Keyword(
+                            Fn,
+                        ),
+                        name: "main",
+                        parameters: [],
+                        return_type: TypeInfo {
+                            name: "void",
+                        },
+                        statements: [
+                            Expression(
+                                Variable(
+                                    Variable {
+                                        name: Identifier(
+                                            "tmp",
+                                        ),
+                                        is_decl: true,
+                                        is_mut: false,
+                                        expression: Literal(
+                                            Number(
+                                                "1",
+                                            ),
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ],
+                    },
+                ],
+                variables: [],
+            },
+        ),
+    },
+)

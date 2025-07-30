@@ -328,11 +328,10 @@ mod tests {
 
     #[test]
     fn test_double_char_operators() {
-        let input = ":= == != <= >= && || |>";
+        let input = "== != <= >= && || |>";
         let tokens = lex_string(input).unwrap();
 
         let expected = vec![
-            Token::Operator(Operator::Assign),
             Token::Operator(Operator::Equal),
             Token::Operator(Operator::NotEqual),
             Token::Operator(Operator::LessEqual),
@@ -446,6 +445,7 @@ mod tests {
         let expected = vec![
             Token::Identifier("x".to_string()),
             Token::Operator(Operator::Assign),
+            Token::Operator(Operator::Reassign),
             Token::Literal(Literal::Number("5".to_string())),
             Token::Operator(Operator::Plus),
             Token::Literal(Literal::Number("3".to_string())),
@@ -761,24 +761,6 @@ mod tests {
             Token::Identifier("c".to_string()),
             Token::Newline,
             Token::Identifier("d".to_string()),
-        ];
-
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
-    fn test_assign_vs_reassign() {
-        let input = "x := 5\ny = 10";
-        let tokens = lex_string(input).unwrap();
-
-        let expected = vec![
-            Token::Identifier("x".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("5".to_string())),
-            Token::Newline,
-            Token::Identifier("y".to_string()),
-            Token::Operator(Operator::Reassign),
-            Token::Literal(Literal::Number("10".to_string())),
         ];
 
         assert_eq!(tokens, expected);

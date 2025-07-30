@@ -2,12 +2,12 @@ use crate::{
     lex::token::{Keyword, Literal, Token},
     parser::{
         ParserContext,
+        ast::Variable,
         functions::{Function, FunctionParser},
         parser_error::ParserError,
-        variables::{Variable, VariableParser},
+        variables::VariableParser,
     },
 };
-use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {
@@ -17,40 +17,12 @@ pub struct Import {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
-    pub name: Token,
+    pub decl: Token,
+    pub name: String,
     pub imports: Vec<Import>,
     pub modules: Vec<Module>,
     pub functions: Vec<Function>,
     pub variables: Vec<Variable>,
-}
-
-impl fmt::Display for Module {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "module {}", self.name)?;
-
-        if !self.variables.is_empty() || !self.functions.is_empty() || !self.modules.is_empty() {
-            write!(f, " {{")?;
-
-            // Display variables
-            for var in &self.variables {
-                write!(f, "\n  {}", var)?;
-            }
-
-            // Display functions
-            for func in &self.functions {
-                write!(f, "\n  fn {}(...)", func.name)?;
-            }
-
-            // Display nested modules
-            for module in &self.modules {
-                write!(f, "\n  module {} {{...}}", module.name)?;
-            }
-
-            write!(f, "\n}}")?;
-        }
-
-        Ok(())
-    }
 }
 
 pub struct ModuleParser;
@@ -58,14 +30,17 @@ pub struct ModuleParser;
 impl ModuleParser {
     pub fn parse(ctx: &mut ParserContext, tokens: &[Token]) -> Result<Module, ParserError> {
         Self::validate_module_decl(tokens)?;
-        let name: Token = tokens[1].clone();
-        match name {
-            Token::Identifier(ref name) => ctx.enter_module(name.clone()),
+        let name = match &tokens[1] {
+            Token::Identifier(name) => {
+                ctx.enter_module(name.clone());
+                name.clone()
+            }
             _ => return Err(ParserError::ModuleWithoutName),
-        }
+        };
 
         let (imports, modules, functions, variables) = Self::parse_module_body(ctx, &tokens[2..])?;
         Ok(Module {
+            decl: tokens[0].clone(),
             name,
             imports,
             modules,
@@ -151,8 +126,17 @@ impl ModuleParser {
                     let (inner_imports, inner_modules, inner_functions, inner_variables) =
                         Self::parse_module_body(ctx, &tokens[3..body_token_length - 1])?;
 
+                    let name = match &tokens[1] {
+                        Token::Identifier(name) => {
+                            ctx.enter_module(name.clone());
+                            name.clone()
+                        }
+                        _ => return Err(ParserError::UnexpectedToken(tokens[1].clone())),
+                    };
+
                     modules.push(Module {
-                        name: tokens[1].clone(),
+                        decl: tokens[0].clone(),
+                        name,
                         imports: inner_imports,
                         modules: inner_modules,
                         functions: inner_functions,

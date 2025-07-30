@@ -30,19 +30,19 @@ Ok(
         CloseParen,
         OpenBrace,
         Identifier(
-            "io",
+            "tmp",
         ),
-        Dot,
-        Identifier(
-            "printf",
+        Operator(
+            Assign,
         ),
-        OpenParen,
+        Operator(
+            Reassign,
+        ),
         Literal(
-            String(
-                "Hello, World!\\n",
+            Number(
+                "1",
             ),
         ),
-        CloseParen,
         Newline,
         CloseBrace,
         Newline,

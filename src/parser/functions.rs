@@ -6,15 +6,20 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arg {
     pub name: Token,
-    pub type_: Token,
+    pub type_info: TypeInfo,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeInfo {
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub decl: Token,
-    pub name: Token,
+    pub name: String,
     pub parameters: Vec<Arg>,
-    pub return_type: Token,
+    pub return_type: TypeInfo,
     pub statements: Vec<Statement>,
 }
 
@@ -44,17 +49,17 @@ impl FunctionParser {
         let decl = tokens[index].clone();
         index += 1;
 
-        let name = tokens[index].clone();
-        index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
-
-        match name {
-            Token::Identifier(ref name) => {
+        let name = match &tokens[index] {
+            Token::Identifier(name) => {
                 ctx.enter_function(name.clone());
+                name.clone()
             }
             _ => {
-                return Err(ParserError::UnexpectedToken(name));
+                return Err(ParserError::UnexpectedToken(tokens[index].clone()));
             }
-        }
+        };
+
+        index += 2; // Advance 2 tokens to skip the identifier and open parenthesis
 
         let mut parameters = Vec::new();
         while !matches!(tokens[index], Token::OpenBrace)
@@ -79,11 +84,21 @@ impl FunctionParser {
             return Err(ParserError::UnexpectedEndOfInput);
         }
 
-        if !matches!(tokens[index], Token::Identifier(_)) {
-            return Err(ParserError::UnexpectedToken(tokens[index].clone()));
-        }
+        // TODO: This is hacky. Update the parser to convert keywords
+        // and identifiers to a Type enum.
+        let return_type = match &tokens[index] {
+            Token::Identifier(name) => {
+                index += 1;
+                TypeInfo { name: name.clone() }
+            }
+            Token::OpenBrace => TypeInfo {
+                name: "void".to_string(),
+            },
+            _ => {
+                return Err(ParserError::UnexpectedToken(tokens[index].clone()));
+            }
+        };
 
-        let return_type = tokens[index].clone();
         index += 1;
 
         let (statements, block_length) = parse_block(ctx, &tokens[index..])?;
@@ -119,7 +134,13 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
         return Err(ParserError::UnexpectedToken(tokens[index].clone()));
     }
 
-    let type_ = tokens[index].clone();
+    let type_info = match &tokens[index] {
+        Token::Identifier(type_name) => TypeInfo {
+            name: type_name.clone(),
+        },
+        _ => return Err(ParserError::UnexpectedToken(tokens[index].clone())),
+    };
+
     index += 1;
 
     if !matches!(tokens[index], Token::Comma) && !matches!(tokens[index], Token::CloseParen) {
@@ -127,7 +148,7 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
     }
 
     // Don't consume the delimiter - let the caller handle it
-    Ok((Arg { name, type_ }, index))
+    Ok((Arg { name, type_info }, index))
 }
 
 fn parse_block(
@@ -138,11 +159,7 @@ fn parse_block(
         return Err(ParserError::UnexpectedEndOfInput);
     }
 
-    if !matches!(tokens[0], Token::OpenBrace) {
-        return Err(ParserError::UnexpectedToken(tokens[0].clone()));
-    }
-
-    let mut index = 1;
+    let mut index = 0;
 
     let mut statements = Vec::new();
 

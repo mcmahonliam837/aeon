@@ -3,5 +3,6 @@ module Main
 import "std/io"
 
 fn main() {
-    io.printf("Hello, World!\n")
+    tmp := 1
+    // io.printf("Hello, World!\n")
 }
