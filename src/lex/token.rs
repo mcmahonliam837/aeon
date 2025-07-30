@@ -59,9 +59,12 @@ pub enum Keyword {
     Module,
     Import,
     Fn,
+    Struct,
+    Enum,
     If,
     Else,
     Return,
+    Null,
 }
 
 impl fmt::Display for Keyword {
@@ -70,9 +73,12 @@ impl fmt::Display for Keyword {
             Keyword::Module => write!(f, "module"),
             Keyword::Import => write!(f, "import"),
             Keyword::Fn => write!(f, "fn"),
+            Keyword::Struct => write!(f, "struct"),
+            Keyword::Enum => write!(f, "enum"),
             Keyword::If => write!(f, "if"),
             Keyword::Else => write!(f, "else"),
             Keyword::Return => write!(f, "return"),
+            Keyword::Null => write!(f, "null"),
         }
     }
 }
@@ -84,9 +90,12 @@ impl TryFrom<&str> for Keyword {
             "module" => Ok(Keyword::Module),
             "import" => Ok(Keyword::Import),
             "fn" => Ok(Keyword::Fn),
+            "struct" => Ok(Keyword::Struct),
+            "enum" => Ok(Keyword::Enum),
             "if" => Ok(Keyword::If),
             "else" => Ok(Keyword::Else),
             "return" => Ok(Keyword::Return),
+            "null" => Ok(Keyword::Null),
             _ => Err(()),
         }
     }
@@ -165,12 +174,13 @@ pub enum Operator {
     And,
     Or,
     Pipeline,
+    Question,
 }
 
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Operator::Assign => write!(f, ":="),
+            Operator::Assign => write!(f, ":"),
             Operator::Reassign => write!(f, "="),
             Operator::Plus => write!(f, "+"),
             Operator::Minus => write!(f, "-"),
@@ -189,6 +199,7 @@ impl fmt::Display for Operator {
             Operator::And => write!(f, "&&"),
             Operator::Or => write!(f, "||"),
             Operator::Pipeline => write!(f, "|>"),
+            Operator::Question => write!(f, "?"),
         }
     }
 }
@@ -197,7 +208,7 @@ impl TryFrom<&str> for Operator {
     type Error = ();
     fn try_from(s: &str) -> Result<Self, ()> {
         match s {
-            ":=" => Ok(Operator::Assign),
+            ":" => Ok(Operator::Assign),
             "=" => Ok(Operator::Reassign),
             "+" => Ok(Operator::Plus),
             "-" => Ok(Operator::Minus),
@@ -219,6 +230,7 @@ impl TryFrom<&str> for Operator {
             "<=" => Ok(Operator::LessEqual),
             ">=" => Ok(Operator::GreaterEqual),
             "|>" => Ok(Operator::Pipeline),
+            "?" => Ok(Operator::Question),
             _ => Err(()),
         }
     }

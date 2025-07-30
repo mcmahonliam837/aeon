@@ -4,7 +4,7 @@ use std::io::BufReader;
 
 use crate::lex::lexer::Lexer;
 use crate::parser::Parser;
-use crate::parser::ast::PrettyPrinter;
+use crate::parser::pretty_print::PrettyPrinter;
 
 pub mod lex;
 pub mod parser;

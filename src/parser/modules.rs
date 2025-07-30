@@ -1,5 +1,5 @@
 use crate::{
-    lex::token::{Keyword, Token},
+    lex::token::{Keyword, Literal, Token},
     parser::{
         ParserContext,
         functions::{Function, FunctionParser},
@@ -10,8 +10,15 @@ use crate::{
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Import {
+    pub path: String,
+    pub decl: Token,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     pub name: Token,
+    pub imports: Vec<Import>,
     pub modules: Vec<Module>,
     pub functions: Vec<Function>,
     pub variables: Vec<Variable>,
@@ -57,9 +64,10 @@ impl ModuleParser {
             _ => return Err(ParserError::ModuleWithoutName),
         }
 
-        let (modules, functions, variables) = Self::parse_module_body(ctx, &tokens[2..])?;
+        let (imports, modules, functions, variables) = Self::parse_module_body(ctx, &tokens[2..])?;
         Ok(Module {
             name,
+            imports,
             modules,
             functions,
             variables,
@@ -110,10 +118,11 @@ impl ModuleParser {
     fn parse_module_body(
         ctx: &mut ParserContext,
         tokens: &[Token],
-    ) -> Result<(Vec<Module>, Vec<Function>, Vec<Variable>), ParserError> {
-        let mut modules = Vec::new();
-        let mut functions = Vec::new();
-        let mut variables = Vec::new();
+    ) -> Result<(Vec<Import>, Vec<Module>, Vec<Function>, Vec<Variable>), ParserError> {
+        let mut imports = Vec::<Import>::new();
+        let mut modules = Vec::<Module>::new();
+        let mut functions = Vec::<Function>::new();
+        let mut variables = Vec::<Variable>::new();
 
         let mut index = 0;
         while index < tokens.len() {
@@ -139,11 +148,12 @@ impl ModuleParser {
                             end: None, // TODO: Find the actual end of this module decl
                         });
                     };
-                    let (inner_modules, inner_functions, inner_variables) =
+                    let (inner_imports, inner_modules, inner_functions, inner_variables) =
                         Self::parse_module_body(ctx, &tokens[3..body_token_length - 1])?;
 
                     modules.push(Module {
                         name: tokens[1].clone(),
+                        imports: inner_imports,
                         modules: inner_modules,
                         functions: inner_functions,
                         variables: inner_variables,
@@ -180,6 +190,32 @@ impl ModuleParser {
                     ctx.exit_function();
                     continue;
                 }
+                Token::Keyword(Keyword::Import) => {
+                    let tokens = &tokens[index..];
+
+                    match &tokens[1..] {
+                        [Token::Literal(Literal::String(path)), Token::Newline, ..] => {
+                            imports.push(Import {
+                                path: path.clone(),
+                                decl: tokens[0].clone(),
+                            });
+                        }
+                        [Token::Literal(Literal::String(path))] => {
+                            imports.push(Import {
+                                path: path.clone(),
+                                decl: tokens[0].clone(),
+                            });
+                        }
+                        [token, ..] => {
+                            return Err(ParserError::UnexpectedToken(token.clone()));
+                        }
+                        [] => return Err(ParserError::UnexpectedEndOfInput),
+                    }
+
+                    index += 3;
+
+                    continue;
+                }
                 Token::Newline => {
                     // Just increment once at the end of the loop
                 }
@@ -188,6 +224,6 @@ impl ModuleParser {
             index += 1;
         }
 
-        Ok((modules, functions, variables))
+        Ok((imports, modules, functions, variables))
     }
 }

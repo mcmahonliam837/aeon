@@ -1,0 +1,50 @@
+---
+source: src/lex/mod.rs
+expression: "lex(\"aeon_examples/hello_world.aeon\")"
+---
+Ok(
+    [
+        Keyword(
+            Module,
+        ),
+        Identifier(
+            "Main",
+        ),
+        Newline,
+        Keyword(
+            Import,
+        ),
+        Literal(
+            String(
+                "std/io",
+            ),
+        ),
+        Newline,
+        Keyword(
+            Fn,
+        ),
+        Identifier(
+            "main",
+        ),
+        OpenParen,
+        CloseParen,
+        OpenBrace,
+        Identifier(
+            "io",
+        ),
+        Dot,
+        Identifier(
+            "printf",
+        ),
+        OpenParen,
+        Literal(
+            String(
+                "Hello, World!\\n",
+            ),
+        ),
+        CloseParen,
+        Newline,
+        CloseBrace,
+        Newline,
+    ],
+)

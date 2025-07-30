@@ -1,0 +1,7 @@
+module Main
+
+import "std/io"
+
+fn main() {
+    io.printf("Hello, World!\n")
+}

@@ -3,11 +3,9 @@ pub mod expression;
 pub mod functions;
 pub mod modules;
 pub mod parser_error;
+pub mod pretty_print;
 pub mod statement;
 pub mod variables;
-
-#[cfg(test)]
-mod pretty_print_tests;
 
 use crate::{
     lex::token::Token,
@@ -71,198 +69,29 @@ impl Parser {
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        lex::token::{Keyword, Literal, Operator},
-        parser::{ast::Expression, modules::Module, variables::Variable},
-    };
-
     use super::*;
 
-    #[test]
-    fn test_parse_empty_program() {
-        let tokens = vec![];
-        let ast = Parser::parse(&tokens);
-        assert!(matches!(ast.err(), Some(ParserError::ModuleNotFound)));
+    use std::io::BufReader;
+
+    use insta::assert_debug_snapshot;
+
+    use crate::lex::lexer::Lexer;
+    use stringreader::StringReader;
+
+    fn parse(path: &str) -> Result<Ast, Box<dyn std::error::Error>> {
+        let source = std::fs::read_to_string(path).expect("failed to load test source");
+        let reader = StringReader::new(source.as_str());
+        let tokens = Lexer::lex(BufReader::new(reader))?;
+        Parser::parse(&tokens).map_err(Box::from)
     }
 
     #[test]
-    fn test_parse_program_with_module() {
-        let tokens = vec![Token::Keyword(Keyword::Module)];
-        let ast = Parser::parse(&tokens);
-        assert!(matches!(ast.err(), Some(ParserError::ModuleWithoutName)));
+    fn test_hello_world() {
+        assert_debug_snapshot!(parse("aeon_examples/hello_world.aeon"));
     }
 
     #[test]
-    fn test_parse_program_with_module_name() {
-        let tokens = vec![
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("main".to_string()),
-        ];
-        let ast = Parser::parse(&tokens);
-        assert_eq!(
-            ast.err(),
-            Some(ParserError::ModuleEmpty {
-                start: Token::Keyword(Keyword::Module),
-                end: Token::Identifier("main".to_string())
-            })
-        );
-    }
-
-    #[test]
-    fn test_parse_program_with_module_name_and_body() {
-        let tokens = vec![
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("main".to_string()),
-            Token::Newline,
-            Token::Identifier("global_variable".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("1".to_string())),
-        ];
-
-        let ast = Parser::parse(&tokens);
-        let Ok(ast) = ast else {
-            panic!("Expected Ok(Ast), got Err {:?}", ast.err());
-        };
-
-        let expected = Ast {
-            root: Some(Module {
-                name: Token::Identifier("main".to_string()),
-                modules: vec![],
-                functions: vec![],
-                variables: vec![Variable {
-                    name: Token::Identifier("global_variable".to_string()),
-                    expression: Expression::Literal(Literal::Number("1".to_string())),
-                }],
-            }),
-        };
-
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn test_parse_nested_module() {
-        let tokens = vec![
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("main".to_string()),
-            Token::Newline,
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("nested".to_string()),
-            Token::OpenBrace,
-            Token::Newline,
-            Token::Identifier("global_variable".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("1".to_string())),
-            Token::Newline,
-            Token::CloseBrace,
-        ];
-
-        let ast = Parser::parse(&tokens);
-        let Ok(ast) = ast else {
-            panic!("Expected Ok(Ast), got Err {:?}", ast.err());
-        };
-
-        let expected = Ast {
-            root: Some(Module {
-                name: Token::Identifier("main".to_string()),
-                modules: vec![Module {
-                    name: Token::Identifier("nested".to_string()),
-                    modules: vec![],
-                    functions: vec![],
-                    variables: vec![Variable {
-                        name: Token::Identifier("global_variable".to_string()),
-                        expression: Expression::Literal(Literal::Number("1".to_string())),
-                    }],
-                }],
-                functions: vec![],
-                variables: vec![],
-            }),
-        };
-
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn test_parse_complex_nested_structure() {
-        // module -> module (with variable inside) -> variable -> module(with variable inside) -> variable
-        let tokens = vec![
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("main".to_string()),
-            Token::Newline,
-            // First nested module with variable
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("nested1".to_string()),
-            Token::OpenBrace,
-            Token::Newline,
-            Token::Identifier("var1".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("1".to_string())),
-            Token::Newline,
-            Token::CloseBrace,
-            Token::Newline,
-            // Variable at main module level
-            Token::Identifier("var2".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("2".to_string())),
-            Token::Newline,
-            // Second nested module with variable
-            Token::Keyword(Keyword::Module),
-            Token::Identifier("nested2".to_string()),
-            Token::OpenBrace,
-            Token::Newline,
-            Token::Identifier("var3".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("3".to_string())),
-            Token::Newline,
-            Token::CloseBrace,
-            Token::Newline,
-            // Another variable at main module level
-            Token::Identifier("var4".to_string()),
-            Token::Operator(Operator::Assign),
-            Token::Literal(Literal::Number("4".to_string())),
-        ];
-
-        let ast = Parser::parse(&tokens);
-        let Ok(ast) = ast else {
-            panic!("Expected Ok(Ast), got Err {:?}", ast.err());
-        };
-
-        let expected = Ast {
-            root: Some(Module {
-                name: Token::Identifier("main".to_string()),
-                modules: vec![
-                    Module {
-                        name: Token::Identifier("nested1".to_string()),
-                        modules: vec![],
-                        functions: vec![],
-                        variables: vec![Variable {
-                            name: Token::Identifier("var1".to_string()),
-                            expression: Expression::Literal(Literal::Number("1".to_string())),
-                        }],
-                    },
-                    Module {
-                        name: Token::Identifier("nested2".to_string()),
-                        modules: vec![],
-                        functions: vec![],
-                        variables: vec![Variable {
-                            name: Token::Identifier("var3".to_string()),
-                            expression: Expression::Literal(Literal::Number("3".to_string())),
-                        }],
-                    },
-                ],
-                functions: vec![],
-                variables: vec![
-                    Variable {
-                        name: Token::Identifier("var2".to_string()),
-                        expression: Expression::Literal(Literal::Number("2".to_string())),
-                    },
-                    Variable {
-                        name: Token::Identifier("var4".to_string()),
-                        expression: Expression::Literal(Literal::Number("4".to_string())),
-                    },
-                ],
-            }),
-        };
-
-        assert_eq!(ast, expected);
+    fn test_modules() {
+        assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
     }
 }

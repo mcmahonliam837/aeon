@@ -1,0 +1,10 @@
+---
+source: src/parser/mod.rs
+assertion_line: 90
+expression: "parse(\"aeon_examples/hello_world.aeon\")"
+---
+Err(
+    UnexpectedToken(
+        OpenBrace,
+    ),
+)
