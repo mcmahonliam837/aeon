@@ -19,9 +19,9 @@ impl StatementParser {
         stream: &mut TokenStream,
     ) -> Result<Statement, ParserError> {
         let mut window: [Option<Token>; 5] = [const { None }; 5];
-        for i in 0..5 {
-            window[i] = stream.peek_ahead(i).and_then(|token| Some(token.clone()));
-        }
+        (0..5).for_each(|i| {
+            window[i] = stream.peek_ahead(i).cloned();
+        });
 
         match window {
             [Some(Token::OpenBrace), ..] => {

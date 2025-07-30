@@ -1,5 +1,5 @@
 use crate::{
-    lex::token::{Literal, Operator, Token},
+    lex::token::{Literal, Operator},
     parser::{block::Block, functions::TypeInfo, modules::Module},
 };
 
