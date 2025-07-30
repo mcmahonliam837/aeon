@@ -1,6 +1,6 @@
 use crate::{
     lex::token::{Literal, Operator, Token},
-    parser::modules::Module,
+    parser::{block::Block, modules::Module},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +23,7 @@ impl Default for Ast {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Expression(Expression),
+    Block(Block),
 }
 
 #[derive(Debug, Clone, PartialEq)]

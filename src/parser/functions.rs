@@ -1,6 +1,9 @@
 use crate::{
     lex::token::{Keyword, Token},
-    parser::{ParserContext, ParserError, ast::Statement, statement::StatementParser},
+    parser::{
+        ParserContext, ParserError,
+        block::{Block, BlockParser},
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +23,7 @@ pub struct Function {
     pub name: String,
     pub parameters: Vec<Arg>,
     pub return_type: TypeInfo,
-    pub statements: Vec<Statement>,
+    pub block: Block,
 }
 
 pub struct FunctionParser;
@@ -101,7 +104,7 @@ impl FunctionParser {
 
         index += 1;
 
-        let (statements, block_length) = parse_block(ctx, &tokens[index..])?;
+        let (block, block_length) = BlockParser::parse(ctx, &tokens[index..])?;
 
         Ok((
             Function {
@@ -109,7 +112,7 @@ impl FunctionParser {
                 name,
                 parameters,
                 return_type,
-                statements,
+                block,
             },
             index + block_length,
         ))
@@ -149,25 +152,4 @@ fn parse_arg(tokens: &[Token]) -> Result<(Arg, usize), ParserError> {
 
     // Don't consume the delimiter - let the caller handle it
     Ok((Arg { name, type_info }, index))
-}
-
-fn parse_block(
-    ctx: &mut ParserContext,
-    tokens: &[Token],
-) -> Result<(Vec<Statement>, usize), ParserError> {
-    if tokens.is_empty() {
-        return Err(ParserError::UnexpectedEndOfInput);
-    }
-
-    let mut index = 0;
-
-    let mut statements = Vec::new();
-
-    while index < tokens.len() && !matches!(tokens[index], Token::CloseBrace) {
-        let (statement, token_length) = StatementParser::parse(ctx, &tokens[index..])?;
-        statements.push(statement);
-        index += token_length;
-    }
-
-    Ok((statements, index + 1))
 }

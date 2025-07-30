@@ -29,24 +29,26 @@ Ok(
                         return_type: TypeInfo {
                             name: "void",
                         },
-                        statements: [
-                            Expression(
-                                Variable(
-                                    Variable {
-                                        name: Identifier(
-                                            "tmp",
-                                        ),
-                                        is_decl: true,
-                                        is_mut: false,
-                                        expression: Literal(
-                                            Number(
-                                                "1",
+                        block: Block {
+                            statements: [
+                                Expression(
+                                    Variable(
+                                        Variable {
+                                            name: Identifier(
+                                                "tmp",
                                             ),
-                                        ),
-                                    },
+                                            is_decl: true,
+                                            is_mut: false,
+                                            expression: Literal(
+                                                Number(
+                                                    "1",
+                                                ),
+                                            ),
+                                        },
+                                    ),
                                 ),
-                            ),
-                        ],
+                            ],
+                        },
                     },
                 ],
                 variables: [],
