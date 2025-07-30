@@ -47,7 +47,7 @@ pub enum Expression {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Variable {
-    pub name: Token,
+    pub name: String,
     pub is_decl: bool,
     pub is_mut: bool,
     pub expression: Box<Expression>,

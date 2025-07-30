@@ -2,26 +2,42 @@ use crate::{
     lex::token::Token,
     parser::{
         ParserContext, ast::Statement, block::BlockParser, expression::ExpressionParser,
-        parser_error::ParserError,
+        parser_error::ParserError, token_stream::TokenStream,
     },
 };
+
 pub struct StatementParser;
 
 impl StatementParser {
     pub fn parse(
         ctx: &mut ParserContext,
-        tokens: &[Token],
+        stream: &mut TokenStream,
     ) -> Result<(Statement, usize), ParserError> {
-        match tokens {
-            [Token::OpenBrace, ..] => {
-                let (block, token_length) = BlockParser::parse(ctx, tokens)?;
-                Ok((Statement::Block(block), token_length))
+        let start_position = stream.position();
+
+        match stream.peek() {
+            Some(Token::OpenBrace) => {
+                let mut fork = stream.fork();
+                let (block, consumed) = BlockParser::parse(ctx, &mut fork)?;
+
+                stream.advance(consumed)?;
+
+                let end_position = stream.position();
+                Ok((Statement::Block(block), end_position - start_position))
             }
-            tokens if !tokens.is_empty() => {
-                let (expression, token_length) = ExpressionParser::parse(ctx, tokens)?;
-                Ok((Statement::Expression(expression), token_length))
+            Some(_) => {
+                let mut fork = stream.fork();
+                let (expression, consumed) = ExpressionParser::parse(ctx, &mut fork)?;
+
+                stream.advance(consumed)?;
+
+                let end_position = stream.position();
+                Ok((
+                    Statement::Expression(expression),
+                    end_position - start_position,
+                ))
             }
-            _ => Err(ParserError::UnexpectedEndOfInput),
+            None => Err(ParserError::UnexpectedEndOfInput),
         }
     }
 }

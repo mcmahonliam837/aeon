@@ -1,73 +1,81 @@
 use crate::{
-    lex::token::{Operator, Token},
+    lex::token::{Keyword, Operator, Token},
     parser::{
-        ParserContext,
-        ast::{Expression, Variable},
-        expression::ExpressionParser,
-        parser_error::ParserError,
+        ParserContext, ast::Variable, expression::ExpressionParser, parser_error::ParserError,
+        token_stream::TokenStream,
     },
 };
-use std::fmt;
 
 pub struct VariableParser;
 
 impl VariableParser {
     pub fn parse(
         ctx: &mut ParserContext,
-        tokens: &[Token],
+        stream: &mut TokenStream,
     ) -> Result<(Variable, usize), ParserError> {
-        if tokens.len() < 3 {
-            return Err(ParserError::UnexpectedEndOfInput);
-        }
+        let start_position = stream.position();
 
-        if tokens[1] != Token::Operator(Operator::Assign) {
-            return Err(ParserError::UnexpectedToken(tokens[1].clone()));
-        }
+        // Parse variable name
+        let name_token = stream.consume(Token::Identifier(String::new()))?;
+        let name = match name_token {
+            Token::Identifier(name) => name,
+            _ => return Err(ParserError::UnexpectedToken(name_token)),
+        };
 
-        let name = tokens[0].clone();
+        // Check what kind of assignment operator we have
+        let next_token = stream.peek().ok_or(ParserError::UnexpectedEndOfInput)?;
 
-        // TODO: Properly implement the type_info parsing logic
-        // TODO: This is fucking discusting
-        let (variable, token_length) = match tokens {
-            [
-                Token::Identifier(_),
-                Token::Operator(Operator::Assign),
-                Token::Operator(Operator::Reassign),
-                rest @ ..,
-            ] => {
-                let (expression, token_length) = ExpressionParser::parse(ctx, rest)?;
-                (
-                    Variable {
-                        name,
-                        is_decl: true,
-                        is_mut: false,
-                        expression: Box::new(expression),
-                    },
-                    token_length + 3,
-                )
+        let (is_decl, is_mut) = match next_token {
+            Token::Operator(Operator::Assign) => {
+                stream.advance(1)?;
+
+                match (stream.peek(), stream.peek_next()) {
+                    // :mut =
+                    (
+                        Some(Token::Keyword(Keyword::Mut)),
+                        Some(Token::Operator(Operator::Reassign)),
+                    ) => {
+                        stream.advance(2)?;
+                        (true, true) // TODO: This should be (true, true) when implementing mutability
+                    }
+
+                    // :=
+                    (Some(Token::Operator(Operator::Reassign)), _) => {
+                        stream.advance(1)?;
+                        (true, false) // TODO: This should be (true, true) when implementing mutability
+                    }
+
+                    _ => {
+                        return Err(ParserError::UnexpectedToken(stream.current()?.clone()));
+                    }
+                }
             }
-            [
-                Token::Identifier(_),
-                Token::Operator(Operator::Reassign),
-                rest @ ..,
-            ] => {
+            Token::Operator(Operator::Reassign) => {
+                stream.advance(1)?;
                 // TODO: Validate that the variable has already been declared
-                let (expression, token_length) = ExpressionParser::parse(ctx, rest)?;
-
-                (
-                    Variable {
-                        name,
-                        is_decl: false,
-                        is_mut: false,
-                        expression: Box::new(expression),
-                    },
-                    token_length + 2,
-                )
+                (false, true)
             }
             _ => {
-                return Err(ParserError::UnexpectedToken(tokens[2].clone()));
+                return Err(ParserError::UnexpectedToken(next_token.clone()));
             }
         };
-        Ok((variable, token_length))
+
+        // Parse the expression
+        let mut fork = stream.fork();
+        let (expression, consumed) = ExpressionParser::parse(ctx, &mut fork)?;
+
+        stream.advance(consumed)?;
+
+        let end_position = stream.position();
+
+        Ok((
+            Variable {
+                name,
+                is_decl,
+                is_mut,
+                expression: Box::new(expression),
+            },
+            end_position - start_position,
+        ))
     }
 }

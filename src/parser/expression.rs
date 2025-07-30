@@ -1,7 +1,8 @@
 use crate::{
-    lex::token::{Operator, Token},
+    lex::token::Token,
     parser::{
-        ParserContext, ast::Expression, parser_error::ParserError, variables::VariableParser,
+        ParserContext, ast::Expression, parser_error::ParserError, token_stream::TokenStream,
+        variables::VariableParser,
     },
 };
 
@@ -10,31 +11,44 @@ pub struct ExpressionParser;
 impl ExpressionParser {
     pub fn parse(
         ctx: &mut ParserContext,
-        tokens: &[Token],
+        stream: &mut TokenStream,
     ) -> Result<(Expression, usize), ParserError> {
-        if tokens.is_empty() {
-            return Err(ParserError::UnexpectedEndOfInput);
-        }
+        let start_position = stream.position();
 
         // LITERALS
-        match tokens {
-            [Token::Literal(literal), Token::Newline, ..] => {
-                return Ok((Expression::Literal(literal.clone()), 2));
-            }
-            [Token::Literal(literal)] => return Ok((Expression::Literal(literal.clone()), 1)),
-            _ => {}
+        if let Some(Token::Literal(literal)) = stream.peek() {
+            let literal = literal.clone();
+            stream.advance(1)?;
+
+            // Optional newline after literal
+            stream.try_consume(Token::Newline);
+
+            let end_position = stream.position();
+            return Ok((Expression::Literal(literal), end_position - start_position));
         }
 
-        let variable_error = match VariableParser::parse(ctx, tokens) {
-            Ok((variable, token_length)) => {
-                return Ok((Expression::Variable(variable), token_length));
-            }
-            Err(error) => Some(error),
+        // Try to parse as variable
+        let checkpoint = stream.checkpoint();
+        let variable_result = {
+            let mut fork = stream.fork();
+            VariableParser::parse(ctx, &mut fork)
         };
 
-        if let Some(error) = variable_error {
-            return Err(error);
+        match variable_result {
+            Ok((variable, consumed)) => {
+                // Advance the main stream
+                stream.advance(consumed)?;
+
+                let end_position = stream.position();
+                Ok((
+                    Expression::Variable(variable),
+                    end_position - start_position,
+                ))
+            }
+            Err(error) => {
+                stream.restore(checkpoint);
+                Err(error)
+            }
         }
-        Err(ParserError::UnexpectedToken(tokens[0].clone()))
     }
 }

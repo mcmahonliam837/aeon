@@ -5,11 +5,14 @@ pub mod functions;
 pub mod modules;
 pub mod parser_error;
 pub mod statement;
+pub mod token_stream;
 pub mod variables;
 
 use crate::{
     lex::token::Token,
-    parser::{ast::Ast, modules::ModuleParser, parser_error::ParserError},
+    parser::{
+        ast::Ast, modules::ModuleParser, parser_error::ParserError, token_stream::TokenStream,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,10 +64,17 @@ pub struct Parser;
 impl Parser {
     pub fn parse(tokens: &[Token]) -> Result<Ast, ParserError> {
         let mut ctx = ParserContext::new();
-        let module = ModuleParser::parse(&mut ctx, tokens)?;
+        let mut stream = TokenStream::new(tokens);
+        let module = ModuleParser::parse(&mut ctx, &mut stream)?;
         Ok(Ast { root: Some(module) })
     }
 }
+
+#[cfg(test)]
+mod token_stream_test;
+
+#[cfg(test)]
+mod parser_test;
 
 #[cfg(test)]
 mod tests {

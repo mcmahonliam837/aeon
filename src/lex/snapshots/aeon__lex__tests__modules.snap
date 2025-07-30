@@ -85,8 +85,8 @@ Ok(
         Operator(
             Assign,
         ),
-        Identifier(
-            "mut",
+        Keyword(
+            Mut,
         ),
         Operator(
             Reassign,

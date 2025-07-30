@@ -34,9 +34,7 @@ Ok(
                                 Expression(
                                     Variable(
                                         Variable {
-                                            name: Identifier(
-                                                "tmp",
-                                            ),
+                                            name: "tmp",
                                             is_decl: true,
                                             is_mut: false,
                                             expression: Literal(

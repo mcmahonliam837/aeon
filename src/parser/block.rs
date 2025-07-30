@@ -2,6 +2,7 @@ use crate::{
     lex::token::Token,
     parser::{
         ParserContext, ast::Statement, parser_error::ParserError, statement::StatementParser,
+        token_stream::TokenStream,
     },
 };
 
@@ -13,25 +14,39 @@ pub struct Block {
 pub struct BlockParser;
 
 impl BlockParser {
-    pub fn parse(ctx: &mut ParserContext, tokens: &[Token]) -> Result<(Block, usize), ParserError> {
-        if tokens.is_empty() {
-            return Err(ParserError::UnexpectedEndOfInput);
-        }
+    pub fn parse(
+        ctx: &mut ParserContext,
+        stream: &mut TokenStream,
+    ) -> Result<(Block, usize), ParserError> {
+        let start_position = stream.position();
 
-        if !matches!(tokens[0], Token::OpenBrace) {
-            return Err(ParserError::UnexpectedToken(tokens[0].clone()));
-        }
-
-        let mut index = 1;
+        // Consume opening brace
+        stream.consume(Token::OpenBrace)?;
 
         let mut statements = Vec::new();
 
-        while index < tokens.len() && !matches!(tokens[index], Token::CloseBrace) {
-            let (statement, token_length) = StatementParser::parse(ctx, &tokens[index..])?;
-            statements.push(statement);
-            index += token_length;
+        while !stream.is_at_end() {
+            match stream.peek() {
+                Some(Token::CloseBrace) => {
+                    stream.advance(1)?;
+                    break;
+                }
+                _ => {
+                    let mut fork = stream.fork();
+                    let (statement, consumed) = StatementParser::parse(ctx, &mut fork)?;
+                    statements.push(statement);
+
+                    stream.advance(consumed)?;
+
+                    // Advance the main stream
+                    while stream.position() < fork.position() {
+                        stream.advance(1)?;
+                    }
+                }
+            }
         }
 
-        Ok((Block { statements }, index + 1))
+        let end_position = stream.position();
+        Ok((Block { statements }, end_position - start_position))
     }
 }
