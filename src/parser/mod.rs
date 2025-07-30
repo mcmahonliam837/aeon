@@ -134,8 +134,8 @@ mod tests {
         assert_debug_snapshot!(parse("aeon_examples/math.aeon"));
     }
 
-    // #[test]
-    // fn test_modules() {
-    //     assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
-    // }
+    #[test]
+    fn test_modules() {
+        assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
+    }
 }
