@@ -73,7 +73,7 @@ impl ModuleParser {
                     let name = match stream.consume(Token::Identifier(String::new()))? {
                         Token::Identifier(n) => {
                             ctx.enter_module(n.clone());
-                            n
+                            ctx.get_fully_qualified_module_name()
                         }
                         token => return Err(ParserError::UnexpectedToken(token)),
                     };

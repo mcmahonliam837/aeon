@@ -25,6 +25,7 @@ Ok(
                             Fn,
                         ),
                         name: "main",
+                        module: "Main",
                         parameters: [],
                         return_type: TypeInfo {
                             name: "void",

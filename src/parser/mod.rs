@@ -57,6 +57,32 @@ impl ParserContext {
     pub fn exit_function(&mut self) {
         self.stack.pop();
     }
+
+    pub fn get_fully_qualified_module_name(&self) -> String {
+        let mut module_name = String::new();
+        let mut previous_module_name = String::new();
+        for state in self.stack.iter() {
+            if state.current_module == previous_module_name {
+                continue;
+            }
+            module_name.push_str(&state.current_module);
+            previous_module_name = state.current_module.clone();
+        }
+        module_name
+    }
+
+    pub fn get_fully_qualified_function_name(&self) -> Option<String> {
+        let function_name = self
+            .stack
+            .last()
+            .and_then(|state| state.current_function.clone())?;
+
+        Some(format!(
+            "{}.{}",
+            self.get_fully_qualified_module_name(),
+            function_name
+        ))
+    }
 }
 
 pub struct Parser;

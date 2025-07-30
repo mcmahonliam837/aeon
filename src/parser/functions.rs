@@ -41,9 +41,9 @@ impl FunctionParser {
         // Consume function name
         let name_token = stream.consume(Token::Identifier(String::new()))?;
         let name = match name_token {
-            Token::Identifier(n) => {
-                ctx.enter_function(n.clone());
-                n
+            Token::Identifier(name) => {
+                ctx.enter_function(name.clone());
+                name
             }
             _ => {
                 return Err(ParserError::UnexpectedToken(name_token));
