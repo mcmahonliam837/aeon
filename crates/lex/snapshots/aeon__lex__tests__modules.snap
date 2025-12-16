@@ -1,16 +1,9 @@
 ---
 source: src/lex/mod.rs
-expression: "lex(\"aeon_examples/modules.aeon\")"
+expression: "lex(\"examples/modules.aeon\")"
 ---
 Ok(
     [
-        Keyword(
-            Module,
-        ),
-        Identifier(
-            "Main",
-        ),
-        Newline,
         Keyword(
             Import,
         ),
@@ -85,9 +78,6 @@ Ok(
         Operator(
             Assign,
         ),
-        Keyword(
-            Mut,
-        ),
         Operator(
             Reassign,
         ),
@@ -132,21 +122,6 @@ Ok(
         CloseParen,
         Newline,
         Identifier(
-            "list",
-        ),
-        Dot,
-        Identifier(
-            "push_mut",
-        ),
-        OpenParen,
-        Literal(
-            Number(
-                "4",
-            ),
-        ),
-        CloseParen,
-        Newline,
-        Identifier(
             "io",
         ),
         Dot,
@@ -189,21 +164,17 @@ Ok(
         CloseBrace,
         Newline,
         Keyword(
-            Module,
+            Struct,
         ),
         Identifier(
             "LinkedList",
         ),
         OpenBrace,
         Keyword(
-            Module,
+            Struct,
         ),
         Identifier(
             "Node",
-        ),
-        OpenBrace,
-        Keyword(
-            Struct,
         ),
         OpenBrace,
         Identifier(
@@ -234,12 +205,6 @@ Ok(
         Newline,
         CloseBrace,
         Newline,
-        CloseBrace,
-        Newline,
-        Keyword(
-            Struct,
-        ),
-        OpenBrace,
         Identifier(
             "root",
         ),
@@ -255,8 +220,6 @@ Ok(
         Identifier(
             "Node",
         ),
-        Newline,
-        CloseBrace,
         Newline,
         Keyword(
             Fn,
@@ -300,6 +263,15 @@ Ok(
         Identifier(
             "self",
         ),
+        Operator(
+            Assign,
+        ),
+        Operator(
+            Star,
+        ),
+        Identifier(
+            "Self",
+        ),
         Comma,
         Identifier(
             "item",
@@ -315,129 +287,88 @@ Ok(
             "Self",
         ),
         OpenBrace,
+        Identifier(
+            "new_node",
+        ),
+        Operator(
+            Assign,
+        ),
+        Operator(
+            Reassign,
+        ),
+        Identifier(
+            "malloc",
+        ),
+        OpenParen,
+        Identifier(
+            "Node",
+        ),
+        Comma,
+        OpenBrace,
+        Identifier(
+            "data",
+        ),
+        Operator(
+            Assign,
+        ),
+        Identifier(
+            "item",
+        ),
+        Newline,
+        Identifier(
+            "next",
+        ),
+        Operator(
+            Assign,
+        ),
+        Identifier(
+            "self",
+        ),
+        Dot,
+        Identifier(
+            "root",
+        ),
+        Newline,
+        CloseBrace,
+        CloseParen,
+        Newline,
+        Identifier(
+            "self",
+        ),
+        Dot,
+        Identifier(
+            "root",
+        ),
+        Operator(
+            Reassign,
+        ),
+        Identifier(
+            "malloc",
+        ),
+        OpenParen,
+        Identifier(
+            "Node",
+        ),
+        Comma,
+        OpenBrace,
+        Identifier(
+            "data",
+        ),
+        Operator(
+            Assign,
+        ),
+        Identifier(
+            "item",
+        ),
+        Comma,
+        CloseBrace,
+        CloseParen,
+        Newline,
         Keyword(
             Return,
         ),
         Identifier(
-            "Self",
-        ),
-        OpenBrace,
-        Identifier(
-            "root",
-        ),
-        Operator(
-            Assign,
-        ),
-        Operator(
-            Ampersand,
-        ),
-        Identifier(
-            "Node",
-        ),
-        OpenBrace,
-        Identifier(
-            "data",
-        ),
-        Operator(
-            Assign,
-        ),
-        Identifier(
-            "item",
-        ),
-        Newline,
-        Identifier(
-            "next",
-        ),
-        Operator(
-            Assign,
-        ),
-        Identifier(
             "self",
-        ),
-        Dot,
-        Identifier(
-            "root",
-        ),
-        Newline,
-        CloseBrace,
-        Newline,
-        CloseBrace,
-        Newline,
-        CloseBrace,
-        Newline,
-        Keyword(
-            Fn,
-        ),
-        Identifier(
-            "push_mut",
-        ),
-        OpenParen,
-        Identifier(
-            "self",
-        ),
-        Comma,
-        Identifier(
-            "item",
-        ),
-        Operator(
-            Assign,
-        ),
-        Identifier(
-            "i32",
-        ),
-        CloseParen,
-        OpenBrace,
-        Identifier(
-            "new_node",
-        ),
-        Operator(
-            Reassign,
-        ),
-        Operator(
-            Ampersand,
-        ),
-        Identifier(
-            "Node",
-        ),
-        OpenBrace,
-        Identifier(
-            "data",
-        ),
-        Operator(
-            Assign,
-        ),
-        Identifier(
-            "item",
-        ),
-        Newline,
-        Identifier(
-            "next",
-        ),
-        Operator(
-            Assign,
-        ),
-        Identifier(
-            "self",
-        ),
-        Dot,
-        Identifier(
-            "root",
-        ),
-        Newline,
-        CloseBrace,
-        Newline,
-        Identifier(
-            "self",
-        ),
-        Dot,
-        Identifier(
-            "root",
-        ),
-        Operator(
-            Reassign,
-        ),
-        Identifier(
-            "new_node",
         ),
         Newline,
         CloseBrace,

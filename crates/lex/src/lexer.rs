@@ -1,4 +1,4 @@
-use crate::lex::token::{Keyword, Literal, Operator, Token};
+use crate::token::{Keyword, Literal, Operator, Token};
 use std::{collections::VecDeque, error::Error, io::BufRead};
 use utf8_chars::BufReadCharsExt;
 

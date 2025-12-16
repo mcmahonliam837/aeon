@@ -9,11 +9,9 @@ pub mod token_stream;
 // pub mod variables;
 
 use crate::{
-    lex::token::Token,
-    parser::{
-        ast::Ast, modules::ModuleParser, parser_error::ParserError, token_stream::TokenStream,
-    },
+    ast::Ast, modules::ModuleParser, parser_error::ParserError, token_stream::TokenStream,
 };
+use lex::token::Token;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserState {
@@ -114,7 +112,7 @@ mod tests {
 
     use insta::assert_debug_snapshot;
 
-    use crate::lex::lexer::Lexer;
+    use lex::lexer::Lexer;
     use stringreader::StringReader;
 
     fn parse(path: &str) -> Result<Ast, Box<dyn std::error::Error>> {
@@ -126,16 +124,16 @@ mod tests {
 
     #[test]
     fn test_hello_world() {
-        assert_debug_snapshot!(parse("aeon_examples/hello_world.aeon"));
+        assert_debug_snapshot!(parse("examples/hello_world.aeon"));
     }
 
     #[test]
     fn test_math() {
-        assert_debug_snapshot!(parse("aeon_examples/math.aeon"));
+        assert_debug_snapshot!(parse("examples/math.aeon"));
     }
 
     #[test]
     fn test_modules() {
-        assert_debug_snapshot!(parse("aeon_examples/modules.aeon"));
+        assert_debug_snapshot!(parse("examples/modules.aeon"));
     }
 }

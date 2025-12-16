@@ -1,11 +1,9 @@
 use crate::{
-    lex::token::{Keyword, Token},
-    parser::{
-        ParserContext, ParserError,
-        block::{Block, BlockParser},
-        token_stream::TokenStream,
-    },
+    ParserContext, ParserError,
+    block::{Block, BlockParser},
+    token_stream::TokenStream,
 };
+use lex::token::{Keyword, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arg {

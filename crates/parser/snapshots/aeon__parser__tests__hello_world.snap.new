@@ -1,0 +1,8 @@
+---
+source: src/parser/mod.rs
+assertion_line: 129
+expression: "parse(\"examples/hello_world.aeon\")"
+---
+Err(
+    ModuleNotFound,
+)

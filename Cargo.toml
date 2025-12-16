@@ -1,9 +1,20 @@
+
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+
 [package]
 name = "aeon"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+lex = { path = "crates/lex" }
+parser = { path = "crates/parser" }
+
+
+[workspace.dependencies]
 insta = "1.43.1"
 stringreader = "0.1.1"
 utf8-chars = "3.0.5"

@@ -1,14 +1,13 @@
 use crate::{
-    lex::token::{Keyword, Literal, Token},
-    parser::{
-        ParserContext,
-        ast::{Expression, Statement, Variable},
-        functions::{Function, FunctionParser},
-        parser_error::ParserError,
-        statement::StatementParser,
-        token_stream::TokenStream,
-    },
+    ParserContext,
+    ast::{Expression, Statement, Variable},
+    functions::{Function, FunctionParser},
+    parser_error::ParserError,
+    statement::StatementParser,
+    token_stream::TokenStream,
 };
+
+use lex::token::{Keyword, Literal, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Import {

@@ -9,9 +9,8 @@ mod tests {
 
     use stringreader::StringReader;
 
-    use crate::lex::token::Token;
-
     use super::lexer::*;
+    use super::token::*;
 
     fn lex(path: &str) -> Result<Vec<Token>, LexerError> {
         let source = std::fs::read_to_string(path).expect("failed to load test source");
@@ -21,11 +20,11 @@ mod tests {
 
     #[test]
     fn test_hello_world() {
-        assert_debug_snapshot!(lex("aeon_examples/hello_world.aeon"));
+        assert_debug_snapshot!(lex("../../examples/hello_world.aeon"));
     }
 
     #[test]
     fn test_modules() {
-        assert_debug_snapshot!(lex("aeon_examples/modules.aeon"));
+        assert_debug_snapshot!(lex("../../examples/structs.aeon"));
     }
 }

@@ -1,5 +1,5 @@
-use crate::lex::token::Token;
-use crate::parser::parser_error::ParserError;
+use crate::parser_error::ParserError;
+use lex::token::Token;
 
 #[derive(Debug, Clone)]
 pub struct TokenStream<'a> {
@@ -193,7 +193,7 @@ impl<'a> TokenStream<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::token::{Keyword, Token};
+    use lex::token::{Keyword, Token};
 
     #[test]
     fn test_new_stream() {

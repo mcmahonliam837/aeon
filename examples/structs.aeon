@@ -1,0 +1,54 @@
+import "std/io"
+
+fn main() {
+  list := LinkedList.new().push(0)
+
+  // Prints: "[0]"
+  io.printf("%A\n", list)
+
+  // New scope
+  {
+    list := list
+      .push(1)
+      .push(2)
+      .push(3)
+
+    // Prints: "[1, 2, 3, 4]"
+    io.printf("%A\n", list)
+  }
+
+  // Prints: "[0]"
+  io.printf("%A\n", list)
+}
+
+
+struct LinkedList {
+
+  // Maybe for data only modules, we support a `datamodule Node` construct.
+  struct Node {
+    data: i32
+    next: ?*Node
+  }
+
+  root: ?*Node
+
+
+  fn new() Self {
+    return LinkedList {
+      root: null
+    }
+  }
+
+  fn push(self: *Self, item: i32) Self {
+    new_node := malloc(Node, {
+      data: item
+      next: self.root
+    })
+
+    self.root = malloc(Node, {
+      data: item,
+    })
+
+    return self
+  }
+}

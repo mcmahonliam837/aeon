@@ -1,5 +1,8 @@
 build:
-    cargo build
+    cargo build --workspace
 
 test:
-    cargo test
+    cargo insta test --workspace
+
+review:
+  cargo insta review --workspace

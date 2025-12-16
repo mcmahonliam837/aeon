@@ -1,12 +1,11 @@
 use crate::{
-    lex::token::Token,
-    parser::{
-        ParserContext,
-        ast::{Expression, Variable},
-        parser_error::ParserError,
-        token_stream::TokenStream,
-    },
+    ParserContext,
+    ast::{Expression, Variable},
+    parser_error::ParserError,
+    token_stream::TokenStream,
 };
+
+use lex::token::Token;
 
 pub struct ExpressionParser;
 

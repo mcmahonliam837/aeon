@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::lex::token::Token;
+use lex::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub enum ParserError {

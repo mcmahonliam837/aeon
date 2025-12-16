@@ -1,7 +1,5 @@
-use crate::{
-    lex::token::{Literal, Operator},
-    parser::{block::Block, functions::TypeInfo, modules::Module},
-};
+use crate::{block::Block, functions::TypeInfo, modules::Module};
+use lex::token::{Literal, Operator};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast {

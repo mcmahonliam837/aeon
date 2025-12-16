@@ -1,14 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        lex::token::{Keyword, Literal, Operator, Token},
-        parser::{
-            Parser,
-            ast::{Ast, Expression, Statement},
-            modules::Module,
-            parser_error::ParserError,
-        },
+        Parser,
+        ast::{Ast, Expression, Statement},
+        modules::Module,
+        parser_error::ParserError,
     };
+    use lex::token::{Keyword, Literal, Operator, Token};
 
     #[test]
     fn test_parse_empty_module() {

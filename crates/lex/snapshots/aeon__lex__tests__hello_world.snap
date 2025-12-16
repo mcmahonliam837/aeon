@@ -1,16 +1,9 @@
 ---
 source: src/lex/mod.rs
-expression: "lex(\"aeon_examples/hello_world.aeon\")"
+expression: "lex(\"examples/hello_world.aeon\")"
 ---
 Ok(
     [
-        Keyword(
-            Module,
-        ),
-        Identifier(
-            "Main",
-        ),
-        Newline,
         Keyword(
             Import,
         ),

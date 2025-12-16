@@ -1,6 +1,5 @@
-use crate::lex::token::{Keyword, Literal, Operator, Token};
-use crate::parser::parser_error::ParserError;
-use crate::parser::token_stream::TokenStream;
+use crate::{parser_error::ParserError, token_stream::TokenStream};
+use lex::token::{Keyword, Literal, Operator, Token};
 
 #[cfg(test)]
 mod tests {

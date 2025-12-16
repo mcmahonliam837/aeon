@@ -1,0 +1,43 @@
+---
+source: crates/lex/src/lib.rs
+expression: "lex(\"../../examples/hello_world.aeon\")"
+---
+Ok(
+    [
+        Keyword(
+            Import,
+        ),
+        Literal(
+            String(
+                "std/io",
+            ),
+        ),
+        Newline,
+        Keyword(
+            Fn,
+        ),
+        Identifier(
+            "main",
+        ),
+        OpenParen,
+        CloseParen,
+        OpenBrace,
+        Identifier(
+            "tmp",
+        ),
+        Operator(
+            Assign,
+        ),
+        Operator(
+            Reassign,
+        ),
+        Literal(
+            Number(
+                "1",
+            ),
+        ),
+        Newline,
+        CloseBrace,
+        Newline,
+    ],
+)

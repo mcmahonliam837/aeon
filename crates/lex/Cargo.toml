@@ -1,0 +1,12 @@
+[package]
+name = "lex"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+insta = { workspace = true }
+stringreader = { workspace = true }
+utf8-chars = { workspace = true }
+
+[lib]
+path = "src/lib.rs"

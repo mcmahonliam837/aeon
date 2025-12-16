@@ -1,10 +1,9 @@
 use crate::{
-    lex::token::Token,
-    parser::{
-        ParserContext, ast::Statement, parser_error::ParserError, statement::StatementParser,
-        token_stream::TokenStream,
-    },
+    ParserContext, ast::Statement, parser_error::ParserError, statement::StatementParser,
+    token_stream::TokenStream,
 };
+
+use lex::token::Token;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {

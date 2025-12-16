@@ -1,15 +1,13 @@
 use crate::{
-    lex::token::{Keyword, Operator, Token},
-    parser::{
-        ParserContext,
-        ast::{Expression, Statement, Variable},
-        block::BlockParser,
-        expression::ExpressionParser,
-        functions::TypeInfo,
-        parser_error::ParserError,
-        token_stream::TokenStream,
-    },
+    ParserContext,
+    ast::{Expression, Statement, Variable},
+    block::BlockParser,
+    expression::ExpressionParser,
+    functions::TypeInfo,
+    parser_error::ParserError,
+    token_stream::TokenStream,
 };
+use lex::token::{Keyword, Operator, Token};
 
 pub struct StatementParser;
 
